@@ -1,5 +1,4 @@
 import React from 'react';
-import { Phone } from 'lucide-react';
 import { Rubik } from 'next/font/google';
 
 const rubik = Rubik({
@@ -15,12 +14,12 @@ const clipPathStyle = {
 export default function Hero() {
     return (
         <section
-            className={`${rubik.variable} relative h-screen w-full bg-[#000000] overflow-hidden text-white`}
+            className={`${rubik.variable} relative h-[60vh] w-full bg-[#000000] overflow-hidden text-white`}
             style={{ fontFamily: 'var(--font-rubik), sans-serif' }}
         >
             {/* Video Background */}
             <video
-                className="absolute inset-0 w-full h-1/2 object-cover z-0"
+                className="absolute inset-0 w-full h-full object-cover z-0"
                 autoPlay
                 loop
                 muted
@@ -74,27 +73,7 @@ export default function Hero() {
                     </div>
                 </div>
 
-                {/* Bottom Widget */}
-                <div className="mt-auto self-start">
-                    <div className="backdrop-blur-[40px] backdrop-saturate-[1.8] bg-white/5 border border-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_8px_32px_rgba(0,0,0,0.4)] p-6 md:p-8 relative overflow-hidden" style={clipPathStyle}>
-                        {/* Diagonal shine effect */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-white/0 to-transparent pointer-events-none" />
 
-                        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6 md:gap-10">
-                            <div>
-                                <h3 className="font-bold text-xl uppercase tracking-tight">Book a Free Consultation</h3>
-                                <p className="text-white/70 text-sm mt-1.5 font-medium">Talk to our logistics experts today.</p>
-                            </div>
-                            <button
-                                className="bg-white text-[#000000] px-6 py-3 font-bold uppercase text-sm flex items-center gap-2 hover:bg-gray-100 transition-colors"
-                                style={clipPathStyle}
-                            >
-                                <Phone size={18} className="text-[#EE3F2C]" />
-                                Book a Call
-                            </button>
-                        </div>
-                    </div>
-                </div>
 
             </div>
         </section>
