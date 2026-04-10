@@ -49,25 +49,72 @@ export async function loadGLB(url: string, externalTextureUrl?: string): Promise
     return new Float32Array(chunk);
   }
 
-  // Iterate over all meshes and their primitives
-  for (const mesh of json.meshes) {
+  // Find all nodes with a mesh instance, or default to all meshes if no nodes exist
+  const nodesWithMesh = json.nodes ? json.nodes.filter((n: any) => n.mesh !== undefined) : [];
+  const instances = nodesWithMesh.length > 0 ? nodesWithMesh : json.meshes.map((m: any, i: number) => ({ mesh: i }));
+
+  // Iterate over all instanced meshes and apply their Transforms (TRS)
+  for (const node of instances) {
+    const mesh = json.meshes[node.mesh];
+    
+    // Extract Transform
+    let tx = 0, ty = 0, tz = 0;
+    if (node.translation) { tx = node.translation[0]; ty = node.translation[1]; tz = node.translation[2]; }
+    
+    let qx = 0, qy = 0, qz = 0, qw = 1;
+    if (node.rotation) { qx = node.rotation[0]; qy = node.rotation[1]; qz = node.rotation[2]; qw = node.rotation[3]; }
+    
+    let sx = 1, sy = 1, sz = 1;
+    if (node.scale) { sx = node.scale[0]; sy = node.scale[1]; sz = node.scale[2]; }
+
     for (const primitive of mesh.primitives) {
-      const attributes = primitive.attributes;
-      const positions = getBufferData(attributes.POSITION) as Float32Array;
-      const normals = getBufferData(attributes.NORMAL) as Float32Array;
-      const uvs = attributes.TEXCOORD_0 !== undefined ? getBufferData(attributes.TEXCOORD_0) as Float32Array : undefined;
+      if (!primitive.attributes) continue;
+      
+      const positions = getBufferData(primitive.attributes.POSITION) as Float32Array;
+      const normals = getBufferData(primitive.attributes.NORMAL) as Float32Array;
+      const uvs = primitive.attributes.TEXCOORD_0 !== undefined ? getBufferData(primitive.attributes.TEXCOORD_0) as Float32Array : undefined;
       
       const indicesAccessor = json.accessors[primitive.indices];
       const indices = getBufferData(primitive.indices) as Uint8Array | Uint16Array | Uint32Array;
       
-      // Upgrade index type if we encounter larger ones
       if (indicesAccessor.componentType > finalIndexType) {
         finalIndexType = indicesAccessor.componentType;
       }
 
-      // Collect data
-      for (let i = 0; i < positions.length; i++) allPositions.push(positions[i]);
-      if (normals) for (let i = 0; i < normals.length; i++) allNormals.push(normals[i]);
+      // Collect data and apply transform
+      for (let i = 0; i < positions.length; i += 3) {
+        // scale
+        let px = positions[i] * sx, py = positions[i+1] * sy, pz = positions[i+2] * sz;
+        
+        // rotate (quaternion)
+        let ix = qw * px + qy * pz - qz * py;
+        let iy = qw * py + qz * px - qx * pz;
+        let iz = qw * pz + qx * py - qy * px;
+        let iw = -qx * px - qy * py - qz * pz;
+        
+        let rx = ix * qw + iw * -qx + iy * -qz - iz * -qy;
+        let ry = iy * qw + iw * -qy + iz * -qx - ix * -qz;
+        let rz = iz * qw + iw * -qz + ix * -qy - iy * -qx;
+        
+        // translate
+        allPositions.push(rx + tx, ry + ty, rz + tz);
+      }
+      
+      if (normals) {
+        for (let i = 0; i < normals.length; i += 3) {
+          let px = normals[i], py = normals[i+1], pz = normals[i+2];
+          let ix = qw * px + qy * pz - qz * py;
+          let iy = qw * py + qz * px - qx * pz;
+          let iz = qw * pz + qx * py - qy * px;
+          let iw = -qx * px - qy * py - qz * pz;
+          
+          let rx = ix * qw + iw * -qx + iy * -qz - iz * -qy;
+          let ry = iy * qw + iw * -qy + iz * -qx - ix * -qz;
+          let rz = iz * qw + iw * -qz + ix * -qy - iy * -qx;
+          allNormals.push(rx, ry, rz);
+        }
+      }
+      
       if (uvs) for (let i = 0; i < uvs.length; i++) allUVs.push(uvs[i]);
       
       for (let i = 0; i < indices.length; i++) {

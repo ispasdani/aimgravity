@@ -4,6 +4,72 @@ import { useEffect, useRef, useState } from 'react';
 import { Engine, GameState } from './engine/engine';
 import { loadGLB } from './engine/loaders/glb-loader';
 
+interface WeaponParams {
+  x: number;
+  y: number;
+  z: number;
+  yaw: number;
+  pitch: number;
+  scale: number;
+}
+
+const WeaponDebugger = ({ engine }: { engine: Engine }) => {
+  const [params, setParams] = useState<WeaponParams>({
+    x: engine.weaponOffset[0],
+    y: engine.weaponOffset[1],
+    z: engine.weaponOffset[2],
+    yaw: engine.weaponRotation[0],
+    pitch: engine.weaponRotation[1],
+    scale: engine.weaponScale,
+  });
+
+  const update = (newParams: Partial<WeaponParams>) => {
+    const p = { ...params, ...newParams };
+    setParams(p);
+    engine.weaponOffset = [p.x, p.y, p.z];
+    engine.weaponRotation = [p.yaw, p.pitch, 0];
+    engine.weaponScale = p.scale;
+  };
+
+  return (
+    <div className="fixed top-4 right-4 z-50 bg-black/60 backdrop-blur-md p-6 rounded-xl border border-white/10 text-white w-72 shadow-2xl space-y-4">
+      <h3 className="text-sm font-bold uppercase tracking-widest text-blue-400 mb-2">Weapon Adjuster</h3>
+      
+      <div className="space-y-3">
+        {[
+          { label: 'X (Left/Right)', key: 'x', min: -1, max: 1, step: 0.01 },
+          { label: 'Y (Up/Down)', key: 'y', min: -1, max: 1, step: 0.01 },
+          { label: 'Z (Forward)', key: 'z', min: -2, max: 0, step: 0.01 },
+          { label: 'Yaw (Tilt Y)', key: 'yaw', min: -Math.PI, max: Math.PI, step: 0.01 },
+          { label: 'Pitch (Tilt X)', key: 'pitch', min: -Math.PI, max: Math.PI, step: 0.01 },
+          { label: 'Scale', key: 'scale', min: 0.1, max: 5.0, step: 0.1 },
+        ].map((s) => (
+          <div key={s.key} className="space-y-1">
+            <div className="flex justify-between text-[10px] font-mono text-white/50">
+              <span>{s.label}</span>
+              <span className="text-white">{(params as any)[s.key].toFixed(2)}</span>
+            </div>
+            <input
+              type="range"
+              min={s.min}
+              max={s.max}
+              step={s.step}
+              value={(params as any)[s.key]}
+              onChange={(e) => update({ [s.key]: parseFloat(e.target.value) })}
+              className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-blue-500"
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 p-2 bg-black/40 rounded border border-white/5 font-mono text-[9px] select-all">
+        {`[${params.x.toFixed(2)}, ${params.y.toFixed(2)}, ${params.z.toFixed(2)}]`} <br/>
+        {`[${params.yaw.toFixed(2)}, ${params.pitch.toFixed(2)}, 0]`}
+      </div>
+    </div>
+  );
+};
+
 export default function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<Engine | null>(null);
@@ -12,24 +78,30 @@ export default function GameCanvas() {
   const [hasStarted, setHasStarted] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [engineReady, setEngineReady] = useState(false);
 
   useEffect(() => {
     if (!canvasRef.current || engineRef.current) return;
     
     // Initialize engine
     const engine = new Engine(canvasRef.current, { drillDuration: 30, sensitivity: 2, targetSize: 0.5 });
-    
+    let isMounted = true;
+
     // Load the Glock model
     const initEngine = async () => {
       try {
         console.log("[Quickplay] Starting asset load for Glock...");
         const glock = await loadGLB('/models/Glock.glb');
-        engine.setWeaponGeometry(glock);
-        setIsLoading(false);
-        console.log("[Quickplay] Glock assets loaded successfully.");
+        
+        if (isMounted) {
+          engine.setWeaponGeometry(glock);
+          setIsLoading(false);
+          setEngineReady(true);
+          console.log("[Quickplay] Glock assets loaded successfully.");
+        }
       } catch (err) {
         console.error("Failed to load Glock model:", err);
-        setIsLoading(false);
+        if (isMounted) setIsLoading(false);
       }
     };
 
@@ -48,6 +120,7 @@ export default function GameCanvas() {
     engineRef.current = engine;
     
     return () => {
+      isMounted = false;
       engine.destroy();
       engineRef.current = null;
     };
@@ -63,6 +136,7 @@ export default function GameCanvas() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-black text-white">
+      {engineReady && engineRef.current && <WeaponDebugger engine={engineRef.current} />}
       <canvas 
         ref={canvasRef} 
         className="block w-full h-full"
