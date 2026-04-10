@@ -1,5 +1,6 @@
-import React from 'react';
+
 import { Rubik } from 'next/font/google';
+import VideoBackground from '../marketing-components/video-background';
 
 const rubik = Rubik({
     subsets: ['latin'],
@@ -18,15 +19,7 @@ export default function Hero() {
             style={{ fontFamily: 'var(--font-rubik), sans-serif' }}
         >
             {/* Video Background */}
-            <video
-                className="absolute inset-0 w-full h-full object-cover z-0"
-                autoPlay
-                loop
-                muted
-                playsInline
-            >
-                <source src="videos/heroVideo.mp4" type="video/mp4" />
-            </video>
+            <VideoBackground />
 
             {/* Main Content Wrapper */}
             <div className="relative z-10 flex flex-col h-full p-8 md:p-16 max-w-[1440px] mx-auto">
