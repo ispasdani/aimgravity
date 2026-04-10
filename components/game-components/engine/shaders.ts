@@ -143,6 +143,7 @@ layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec3 a_normal;
 layout(location = 2) in vec3 a_color;
 layout(location = 3) in float a_partId;
+layout(location = 4) in vec2 a_uv;
 
 uniform mat4 u_model;
 uniform mat4 u_projection;
@@ -152,12 +153,13 @@ uniform float u_recoil;
 out vec3 v_normal;
 out vec3 v_color;
 out vec3 v_worldPos;
+out vec2 v_uv;
 
 void main() {
   vec3 pos = a_position;
   
   // Slide animation (ID 1.0)
-  // Slide moves back (positive Z in model space) during recoil
+  // Check against a range to be safe with float precision
   if (a_partId > 0.5) {
     pos.z += u_recoil * 0.08;
   }
@@ -166,7 +168,6 @@ void main() {
   vec4 worldPos = u_model * vec4(pos, 1.0);
   
   // Apply snappy frame recoil
-  // Pitch up and move back
   float recoilFactor = pow(u_recoil, 1.5);
   worldPos.z += recoilFactor * 0.04;
   worldPos.y += recoilFactor * 0.02;
@@ -175,7 +176,6 @@ void main() {
   float angle = recoilFactor * 0.1;
   float c = cos(angle);
   float s = sin(angle);
-  // Simple rotation around model origin for better pivot
   float ry = worldPos.y;
   float rz = worldPos.z;
   worldPos.y = ry * c - rz * s;
@@ -190,6 +190,7 @@ void main() {
   v_worldPos = worldPos.xyz;
   v_normal = mat3(u_model) * a_normal;
   v_color = a_color;
+  v_uv = a_uv;
   
   gl_Position = u_projection * worldPos;
 }
@@ -201,13 +202,16 @@ precision highp float;
 in vec3 v_normal;
 in vec3 v_color;
 in vec3 v_worldPos;
+in vec2 v_uv;
 
 uniform float u_muzzleFlash;
+uniform bool u_useTexture;
+uniform sampler2D u_texture;
 
 out vec4 fragColor;
 
 void main() {
-  // PSX-style flat shading with harsh lighting
+  // PSX-style lighting
   vec3 lightDir = normalize(vec3(0.5, 1.0, 0.3));
   vec3 normal = normalize(v_normal);
   
@@ -217,7 +221,8 @@ void main() {
   // Quantize lighting for PSX effect
   diff = floor(diff * 4.0) / 4.0;
   
-  vec3 color = v_color * (ambient + diff * 0.7);
+  vec3 baseColor = u_useTexture ? texture(u_texture, v_uv).rgb : v_color;
+  vec3 color = baseColor * (ambient + diff * 0.7);
   
   // Add muzzle flash glow
   color += vec3(1.0, 0.6, 0.2) * u_muzzleFlash * 0.5;

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Engine, GameState } from './engine/engine';
+import { loadGLB } from './engine/loaders/glb-loader';
 
 export default function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -10,12 +11,27 @@ export default function GameCanvas() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [hasStarted, setHasStarted] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!canvasRef.current || engineRef.current) return;
     
     // Initialize engine
     const engine = new Engine(canvasRef.current, { drillDuration: 30, sensitivity: 2, targetSize: 0.5 });
+    
+    // Load the Glock model
+    const initEngine = async () => {
+      try {
+        const glock = await loadGLB('/models/Glock.glb');
+        engine.setWeaponGeometry(glock);
+        setIsLoading(false);
+      } catch (err) {
+        console.error("Failed to load Glock model:", err);
+        setIsLoading(false); // Still allow game to play with box if model fails
+      }
+    };
+
+    initEngine();
     
     engine.setStateUpdateCallback((state) => {
       setGameState(state);
@@ -36,7 +52,7 @@ export default function GameCanvas() {
   }, []);
 
   const handleStart = () => {
-    if (engineRef.current && !hasStarted) {
+    if (engineRef.current && !hasStarted && !isLoading) {
       engineRef.current.start();
       setHasStarted(true);
       setIsFinished(false);
@@ -62,12 +78,19 @@ export default function GameCanvas() {
           <div className="text-center p-8 bg-zinc-900 rounded-xl border border-zinc-800 pointer-events-auto">
             <h1 className="text-3xl font-bold mb-4">Aim Training</h1>
             <p className="text-zinc-400 mb-6">Click anywhere to start the 30s drill.</p>
-            <button 
-              onClick={handleStart}
-              className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-md font-medium transition-colors"
-            >
-              Start Game
-            </button>
+            {isLoading ? (
+              <div className="flex items-center justify-center gap-3 text-red-500 font-medium">
+                <div className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+                Loading Models...
+              </div>
+            ) : (
+              <button 
+                onClick={handleStart}
+                className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-md font-medium transition-colors"
+              >
+                Start Game
+              </button>
+            )}
           </div>
         </div>
       )}

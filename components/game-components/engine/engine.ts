@@ -214,7 +214,9 @@ export class Engine {
       projection: gl.getUniformLocation(program, 'u_projection'),
       time: gl.getUniformLocation(program, 'u_time'),
       recoil: gl.getUniformLocation(program, 'u_recoil'),
-      muzzleFlash: gl.getUniformLocation(program, 'u_muzzleFlash')
+      muzzleFlash: gl.getUniformLocation(program, 'u_muzzleFlash'),
+      useTexture: gl.getUniformLocation(program, 'u_useTexture'),
+      texture: gl.getUniformLocation(program, 'u_texture')
     };
     
     return program;
@@ -386,6 +388,15 @@ export class Engine {
     gl.bufferData(gl.ARRAY_BUFFER, weapon.ids!, gl.STATIC_DRAW);
     gl.enableVertexAttribArray(3);
     gl.vertexAttribPointer(3, 1, gl.FLOAT, false, 0, 0);
+    
+    // UVs (location 4)
+    if (weapon.uvs) {
+      const uvBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, weapon.uvs, gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(4);
+      gl.vertexAttribPointer(4, 2, gl.FLOAT, false, 0, 0);
+    }
     
     const indexBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
@@ -631,6 +642,7 @@ export class Engine {
     gl.uniform1f((this.weaponProgram as any).uniforms.time, this.gameTime);
     gl.uniform1f((this.weaponProgram as any).uniforms.recoil, this.recoil);
     gl.uniform1f((this.weaponProgram as any).uniforms.muzzleFlash, this.muzzleFlash);
+    gl.uniform1i((this.weaponProgram as any).uniforms.useTexture, 0); // Default to no texture for now
     
     gl.bindVertexArray(this.weaponVAO);
     gl.drawElements(gl.TRIANGLES, this.weaponIndexCount, gl.UNSIGNED_SHORT, 0);
@@ -649,6 +661,63 @@ export class Engine {
   
   setGameEndCallback(cb: (state: GameState) => void) {
     this.onGameEnd = cb;
+  }
+
+  setWeaponGeometry(geometry: any) {
+    const gl = this.gl;
+    this.createWeaponPreview(geometry);
+  }
+
+  // Refactored helper to create weapon buffers from geometry
+  private createWeaponPreview(weapon: any) {
+    const gl = this.gl;
+    
+    this.weaponVAO = gl.createVertexArray()!;
+    gl.bindVertexArray(this.weaponVAO);
+    
+    const posBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, weapon.positions, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+    
+    const normalBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, weapon.normals!, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(1);
+    gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+    
+    const colorBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, weapon.colors!, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(2);
+    gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 0, 0);
+    
+    // Part IDs (Location 3)
+    this.weaponIdBuffer = gl.createBuffer()!;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.weaponIdBuffer);
+    const idData = weapon.ids || new Float32Array(weapon.positions.length / 3).fill(0);
+    gl.bufferData(gl.ARRAY_BUFFER, idData, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(3);
+    gl.vertexAttribPointer(3, 1, gl.FLOAT, false, 0, 0);
+    
+    // UVs (Location 4)
+    if (weapon.uvs) {
+      const uvBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, weapon.uvs, gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(4);
+      gl.vertexAttribPointer(4, 2, gl.FLOAT, false, 0, 0);
+    } else {
+      gl.disableVertexAttribArray(4);
+    }
+    
+    const indexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, weapon.indices, gl.STATIC_DRAW);
+    
+    this.weaponIndexCount = weapon.indices.length;
+    gl.bindVertexArray(null);
   }
   
   updateSettings(settings: EngineSettings) {
