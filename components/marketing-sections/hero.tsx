@@ -1,5 +1,5 @@
-
 import { Rubik } from 'next/font/google';
+import Link from 'next/link';
 import VideoBackground from '../marketing-components/video-background';
 
 const rubik = Rubik({
@@ -43,26 +43,28 @@ export default function Hero() {
                     </nav>
 
                     {/* Contact Button */}
-                    <button
+                    <Link
+                        href="/dashboard"
                         className="hidden md:block bg-[#EE3F2C] text-white px-7 py-3 font-bold uppercase text-sm tracking-wide hover:bg-red-600 transition-colors"
                         style={clipPathStyle}
                     >
-                        Try AimGravity +
-                    </button>
+                        Enter Dashboard +
+                    </Link>
                 </header>
 
                 {/* Main Hero Content (Upper Third) */}
                 <div className="flex-grow flex flex-col justify-start pt-[12vh]">
                     <h1 className="text-[42px] leading-[1.05] md:text-[64px] font-bold uppercase tracking-[-0.04em] max-w-3xl">
-                        Swift and Simple Transport
+                        Master Your Mechanics
                     </h1>
                     <div className="mt-8">
-                        <button
-                            className="bg-[#EE3F2C] text-white px-8 py-4 font-bold uppercase text-sm tracking-wide hover:bg-red-600 transition-colors"
+                        <Link
+                            href="/dashboard"
+                            className="inline-block bg-[#EE3F2C] text-white px-8 py-4 font-bold uppercase text-sm tracking-wide hover:bg-red-600 transition-colors"
                             style={clipPathStyle}
                         >
                             Start Assessment
-                        </button>
+                        </Link>
                     </div>
                 </div>
 
