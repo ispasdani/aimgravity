@@ -1,6 +1,7 @@
 import { GeometryData } from "../geometry";
 
-export async function loadGLB(url: string): Promise<GeometryData> {
+export async function loadGLB(url: string, externalTextureUrl?: string): Promise<GeometryData> {
+  console.log(`[GLB Loader] Fetching ${url}...`);
   const response = await fetch(url);
   const arrayBuffer = await response.arrayBuffer();
   
@@ -8,45 +9,84 @@ export async function loadGLB(url: string): Promise<GeometryData> {
   const magic = header.getUint32(0, true);
   if (magic !== 0x46546C67) throw new Error("Invalid GLB magic");
 
-  // Chunk 0: JSON
   const chunk0Header = new DataView(arrayBuffer, 12, 8);
   const jsonLength = chunk0Header.getUint32(0, true);
   const jsonChunk = new Uint8Array(arrayBuffer, 20, jsonLength);
   const json = JSON.parse(new TextDecoder().decode(jsonChunk));
 
-  // Chunk 1: BIN
   const binOffset = 20 + jsonLength;
   const chunk1Header = new DataView(arrayBuffer, binOffset, 8);
   const binLength = chunk1Header.getUint32(0, true);
   const binBuffer = arrayBuffer.slice(binOffset + 8, binOffset + 8 + binLength);
 
-  const mesh = json.meshes[0];
-  const primitive = mesh.primitives[0];
-  const attributes = primitive.attributes;
+  console.log(`[GLB Loader] JSON parsed. Total Meshes: ${json.meshes?.length}`);
+
+  const allPositions: number[] = [];
+  const allNormals: number[] = [];
+  const allUVs: number[] = [];
+  const allIndices: number[] = [];
+  let vertexOffset = 0;
+  let finalIndexType = 5123; // Default to SHORT
 
   function getBufferData(accessorIndex: number) {
+    if (accessorIndex === undefined) return undefined;
     const accessor = json.accessors[accessorIndex];
     const bufferView = json.bufferViews[accessor.bufferView];
     const offset = (accessor.byteOffset || 0) + (bufferView.byteOffset || 0);
-    const byteLength = accessor.count * (accessor.type === "SCALAR" ? 1 : accessor.type === "VEC2" ? 2 : accessor.type === "VEC3" ? 3 : 4) * 
-                       (accessor.componentType === 5126 ? 4 : 2); // Assume 4 for float, 2 for short
     
-    // Use slice to ensure alignment for TypedArray constructor
+    let componentSize = 2;
+    if (accessor.componentType === 5126 || accessor.componentType === 5125) componentSize = 4;
+    else if (accessor.componentType === 5121) componentSize = 1;
+    
+    const typeCount = accessor.type === "SCALAR" ? 1 : accessor.type === "VEC2" ? 2 : accessor.type === "VEC3" ? 3 : 4;
+    const byteLength = accessor.count * typeCount * componentSize;
     const chunk = binBuffer.slice(offset, offset + byteLength);
     
     if (accessor.componentType === 5126) return new Float32Array(chunk);
+    if (accessor.componentType === 5125) return new Uint32Array(chunk);
     if (accessor.componentType === 5123) return new Uint16Array(chunk);
     if (accessor.componentType === 5121) return new Uint8Array(chunk);
     return new Float32Array(chunk);
   }
 
-  let positions = getBufferData(attributes.POSITION) as Float32Array;
-  const normals = getBufferData(attributes.NORMAL) as Float32Array;
-  const uvs = attributes.TEXCOORD_0 !== undefined ? getBufferData(attributes.TEXCOORD_0) as Float32Array : undefined;
-  const indices = getBufferData(primitive.indices) as Uint16Array;
+  // Iterate over all meshes and their primitives
+  for (const mesh of json.meshes) {
+    for (const primitive of mesh.primitives) {
+      const attributes = primitive.attributes;
+      const positions = getBufferData(attributes.POSITION) as Float32Array;
+      const normals = getBufferData(attributes.NORMAL) as Float32Array;
+      const uvs = attributes.TEXCOORD_0 !== undefined ? getBufferData(attributes.TEXCOORD_0) as Float32Array : undefined;
+      
+      const indicesAccessor = json.accessors[primitive.indices];
+      const indices = getBufferData(primitive.indices) as Uint8Array | Uint16Array | Uint32Array;
+      
+      // Upgrade index type if we encounter larger ones
+      if (indicesAccessor.componentType > finalIndexType) {
+        finalIndexType = indicesAccessor.componentType;
+      }
+
+      // Collect data
+      for (let i = 0; i < positions.length; i++) allPositions.push(positions[i]);
+      if (normals) for (let i = 0; i < normals.length; i++) allNormals.push(normals[i]);
+      if (uvs) for (let i = 0; i < uvs.length; i++) allUVs.push(uvs[i]);
+      
+      for (let i = 0; i < indices.length; i++) {
+        allIndices.push(indices[i] + vertexOffset);
+      }
+      
+      vertexOffset += positions.length / 3;
+    }
+  }
+
+  let positions = new Float32Array(allPositions);
+  const normals = new Float32Array(allNormals);
+  const uvs = allUVs.length > 0 ? new Float32Array(allUVs) : undefined;
+  // Convert indices to appropriate typed array based on final type
+  const indices = finalIndexType === 5125 
+    ? new Uint32Array(allIndices) 
+    : finalIndexType === 5121 ? new Uint8Array(allIndices) as any : new Uint16Array(allIndices);
 
   // --- Normalization Logic ---
-  // Calculate bounding box
   let minX = Infinity, minY = Infinity, minZ = Infinity;
   let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
   
@@ -62,34 +102,41 @@ export async function loadGLB(url: string): Promise<GeometryData> {
   const centerX = (minX + maxX) / 2;
   const centerY = (minY + maxY) / 2;
   const centerZ = (minZ + maxZ) / 2;
-  
-  const sizeX = maxX - minX;
-  const sizeY = maxY - minY;
-  const sizeZ = maxZ - minZ;
-  const maxDim = Math.max(sizeX, sizeY, sizeZ);
-  
-  // Target size (e.g. 0.2 units long for a pistol)
+  const maxDim = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
   const scale = 0.2 / maxDim;
   
-  // Apply centering and scaling
+  console.log(`[GLB Loader] Merged Model. Total Vertices: ${vertexOffset}, Applying scale: ${scale.toFixed(4)}`);
+
   for (let i = 0; i < positions.length; i += 3) {
     positions[i] = (positions[i] - centerX) * scale;
     positions[i+1] = (positions[i+1] - centerY) * scale;
     positions[i+2] = (positions[i+2] - centerZ) * scale;
   }
 
-  const colors = new Float32Array(positions.length);
-  colors.fill(1.0); // Pure white default for texturing
+  const colors = new Float32Array(positions.length).fill(1.0);
+  const ids = new Float32Array(positions.length / 3).fill(0.0);
 
-  const ids = new Float32Array(positions.length / 3);
-  ids.fill(0.0); // Default to static part for all vertices
+  // --- Texture Extraction ---
+  let textureImage: ImageBitmap | HTMLImageElement | undefined = undefined;
+  
+  if (externalTextureUrl) {
+    const img = new Image();
+    img.src = externalTextureUrl;
+    await new Promise((resolve) => img.onload = resolve);
+    textureImage = img;
+  } else {
+    try {
+      const material = json.materials?.[0];
+      const textureIndex = material?.pbrMetallicRoughness?.baseColorTexture?.index;
+      if (textureIndex !== undefined) {
+        const sourceIndex = json.textures[textureIndex].source;
+        const image = json.images[sourceIndex];
+        const bufferView = json.bufferViews[image.bufferView];
+        const imageBuffer = binBuffer.slice(bufferView.byteOffset || 0, (bufferView.byteOffset || 0) + bufferView.byteLength);
+        textureImage = await createImageBitmap(new Blob([imageBuffer], { type: image.mimeType || "image/png" }));
+      }
+    } catch (err) {}
+  }
 
-  return {
-    positions,
-    normals,
-    indices,
-    uvs,
-    colors,
-    ids
-  };
+  return { positions, normals, indices, indexType: finalIndexType, uvs, colors, ids, texture: textureImage };
 }

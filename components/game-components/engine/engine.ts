@@ -75,11 +75,13 @@ export class Engine {
   wallIndexCount: number = 0;
   targetIndexCount: number = 0;
   weaponIndexCount: number = 0;
+  weaponIndexType: number = 5123; // Default UNSIGNED_SHORT (5123)
 
   targetPosBuffer!: WebGLBuffer;
   targetScaleBuffer!: WebGLBuffer;
   targetActiveBuffer!: WebGLBuffer;
   weaponIdBuffer!: WebGLBuffer;
+  weaponTexture: WebGLTexture | null = null;
 
   concreteTexture!: WebGLTexture;
   metalTexture!: WebGLTexture;
@@ -642,10 +644,21 @@ export class Engine {
     gl.uniform1f((this.weaponProgram as any).uniforms.time, this.gameTime);
     gl.uniform1f((this.weaponProgram as any).uniforms.recoil, this.recoil);
     gl.uniform1f((this.weaponProgram as any).uniforms.muzzleFlash, this.muzzleFlash);
-    gl.uniform1i((this.weaponProgram as any).uniforms.useTexture, 0); // Default to no texture for now
+    gl.uniform1i((this.weaponProgram as any).uniforms.useTexture, this.weaponTexture ? 1 : 0);
+    
+    if (this.weaponTexture) {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, this.weaponTexture);
+      gl.uniform1i((this.weaponProgram as any).uniforms.texture, 0);
+    }
+    
+    // DEBUG: Disable culling for weapon to fix "invisible" model issues
+    gl.disable(gl.CULL_FACE);
     
     gl.bindVertexArray(this.weaponVAO);
-    gl.drawElements(gl.TRIANGLES, this.weaponIndexCount, gl.UNSIGNED_SHORT, 0);
+    gl.drawElements(gl.TRIANGLES, this.weaponIndexCount, this.weaponIndexType, 0);
+    
+    gl.enable(gl.CULL_FACE);
     
     gl.disable(gl.DEPTH_TEST);
     gl.useProgram(this.crosshairProgram);
@@ -665,6 +678,7 @@ export class Engine {
 
   setWeaponGeometry(geometry: any) {
     const gl = this.gl;
+    console.log(`[Engine] Setting weapon geometry: ${geometry.positions.length / 3} vertices, Texture: ${!!geometry.texture}`);
     this.createWeaponPreview(geometry);
   }
 
@@ -712,11 +726,24 @@ export class Engine {
       gl.disableVertexAttribArray(4);
     }
     
+    this.weaponIndexCount = weapon.indices.length;
+    this.weaponIndexType = weapon.indexType || 5123; // Default to SHORT if not provided
+    
     const indexBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, weapon.indices, gl.STATIC_DRAW);
-    
-    this.weaponIndexCount = weapon.indices.length;
+
+    // Texture handling
+    if (weapon.texture) {
+      if (this.weaponTexture) gl.deleteTexture(this.weaponTexture);
+      this.weaponTexture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, this.weaponTexture);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, weapon.texture);
+      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    }
+
     gl.bindVertexArray(null);
   }
   
@@ -737,5 +764,6 @@ export class Engine {
     gl.deleteProgram(this.weaponProgram);
     gl.deleteTexture(this.concreteTexture);
     gl.deleteTexture(this.metalTexture);
+    if (this.weaponTexture) gl.deleteTexture(this.weaponTexture);
   }
 }

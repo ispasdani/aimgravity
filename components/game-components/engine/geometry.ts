@@ -4,7 +4,9 @@ export interface GeometryData {
   normals?: Float32Array;
   colors?: Float32Array;
   ids?: Float32Array;
-  indices: Uint16Array;
+  indices: Uint16Array | Uint32Array;
+  indexType?: number; // gl.UNSIGNED_SHORT or gl.UNSIGNED_INT
+  texture?: ImageBitmap | HTMLImageElement;
 }
 
 export function createSphereGeometry(segments: number): GeometryData {

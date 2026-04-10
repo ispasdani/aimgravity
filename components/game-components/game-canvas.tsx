@@ -22,12 +22,14 @@ export default function GameCanvas() {
     // Load the Glock model
     const initEngine = async () => {
       try {
+        console.log("[Quickplay] Starting asset load for Glock...");
         const glock = await loadGLB('/models/Glock.glb');
         engine.setWeaponGeometry(glock);
         setIsLoading(false);
+        console.log("[Quickplay] Glock assets loaded successfully.");
       } catch (err) {
         console.error("Failed to load Glock model:", err);
-        setIsLoading(false); // Still allow game to play with box if model fails
+        setIsLoading(false);
       }
     };
 
