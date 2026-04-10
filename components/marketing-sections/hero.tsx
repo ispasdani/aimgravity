@@ -37,9 +37,9 @@ export default function Hero() {
 
                     {/* Links */}
                     <nav className="hidden md:flex items-center gap-10 font-medium text-sm">
-                        <a href="#" className="hover:text-[#EE3F2C] transition-colors uppercase tracking-wide">Home</a>
+                        <a href="#" className="hover:text-[#EE3F2C] transition-colors uppercase tracking-wide">Features</a>
                         <a href="#" className="hover:text-[#EE3F2C] transition-colors uppercase tracking-wide">About</a>
-                        <a href="#" className="hover:text-[#EE3F2C] transition-colors uppercase tracking-wide">Contact Us</a>
+                        <a href="#" className="hover:text-[#EE3F2C] transition-colors uppercase tracking-wide">Pricing</a>
                     </nav>
 
                     {/* Contact Button */}
@@ -47,7 +47,7 @@ export default function Hero() {
                         className="hidden md:block bg-[#EE3F2C] text-white px-7 py-3 font-bold uppercase text-sm tracking-wide hover:bg-red-600 transition-colors"
                         style={clipPathStyle}
                     >
-                        Contact Us
+                        Try AimGravity +
                     </button>
                 </header>
 
@@ -61,7 +61,7 @@ export default function Hero() {
                             className="bg-[#EE3F2C] text-white px-8 py-4 font-bold uppercase text-sm tracking-wide hover:bg-red-600 transition-colors"
                             style={clipPathStyle}
                         >
-                            Get Started
+                            Start Assessment
                         </button>
                     </div>
                 </div>
