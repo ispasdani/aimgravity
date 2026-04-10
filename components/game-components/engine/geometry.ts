@@ -3,6 +3,7 @@ export interface GeometryData {
   uvs?: Float32Array;
   normals?: Float32Array;
   colors?: Float32Array;
+  ids?: Float32Array;
   indices: Uint16Array;
 }
 

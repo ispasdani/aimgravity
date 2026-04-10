@@ -79,6 +79,7 @@ export class Engine {
   targetPosBuffer!: WebGLBuffer;
   targetScaleBuffer!: WebGLBuffer;
   targetActiveBuffer!: WebGLBuffer;
+  weaponIdBuffer!: WebGLBuffer;
 
   concreteTexture!: WebGLTexture;
   metalTexture!: WebGLTexture;
@@ -378,6 +379,13 @@ export class Engine {
     gl.bufferData(gl.ARRAY_BUFFER, weapon.colors!, gl.STATIC_DRAW);
     gl.enableVertexAttribArray(2);
     gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 0, 0);
+    
+    // Part IDs (new)
+    this.weaponIdBuffer = gl.createBuffer()!;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.weaponIdBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, weapon.ids!, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(3);
+    gl.vertexAttribPointer(3, 1, gl.FLOAT, false, 0, 0);
     
     const indexBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);

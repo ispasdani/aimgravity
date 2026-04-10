@@ -142,6 +142,7 @@ precision highp float;
 layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec3 a_normal;
 layout(location = 2) in vec3 a_color;
+layout(location = 3) in float a_partId;
 
 uniform mat4 u_model;
 uniform mat4 u_projection;
@@ -153,17 +154,38 @@ out vec3 v_color;
 out vec3 v_worldPos;
 
 void main() {
+  vec3 pos = a_position;
+  
+  // Slide animation (ID 1.0)
+  // Slide moves back (positive Z in model space) during recoil
+  if (a_partId > 0.5) {
+    pos.z += u_recoil * 0.08;
+  }
+  
   // Apply model transform
-  vec4 worldPos = u_model * vec4(a_position, 1.0);
+  vec4 worldPos = u_model * vec4(pos, 1.0);
   
-  // Apply recoil animation
-  worldPos.z += u_recoil * 0.05;
-  worldPos.y -= u_recoil * 0.02;
+  // Apply snappy frame recoil
+  // Pitch up and move back
+  float recoilFactor = pow(u_recoil, 1.5);
+  worldPos.z += recoilFactor * 0.04;
+  worldPos.y += recoilFactor * 0.02;
   
-  // Subtle idle sway
-  float sway = sin(u_time * 2.0) * 0.002;
-  worldPos.x += sway;
-  worldPos.y += sin(u_time * 1.5) * 0.001;
+  // Slight rotation around X axis for kickback
+  float angle = recoilFactor * 0.1;
+  float c = cos(angle);
+  float s = sin(angle);
+  // Simple rotation around model origin for better pivot
+  float ry = worldPos.y;
+  float rz = worldPos.z;
+  worldPos.y = ry * c - rz * s;
+  worldPos.z = ry * s + rz * c;
+  
+  // Idle sway
+  float swayX = sin(u_time * 2.0) * 0.002;
+  float swayY = sin(u_time * 1.5) * 0.001;
+  worldPos.x += swayX;
+  worldPos.y += swayY;
   
   v_worldPos = worldPos.xyz;
   v_normal = mat3(u_model) * a_normal;
