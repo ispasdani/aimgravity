@@ -450,11 +450,20 @@ export class Engine {
     this.pointerLocked = document.pointerLockElement === this.canvas;
   }
 
-  start() {
+  setupInputListeners() {
     document.addEventListener('mousemove', this.handleMouseMove);
     document.addEventListener('mousedown', this.handleMouseDown);
     document.addEventListener('pointerlockchange', this.handleLockChange);
+  }
 
+  removeInputListeners() {
+    document.removeEventListener('mousemove', this.handleMouseMove);
+    document.removeEventListener('mousedown', this.handleMouseDown);
+    document.removeEventListener('pointerlockchange', this.handleLockChange);
+  }
+
+  start() {
+    this.setupInputListeners();
     this.canvas.requestPointerLock();
 
     this.shots = 0;
@@ -484,9 +493,7 @@ export class Engine {
     }
 
     document.exitPointerLock();
-    document.removeEventListener('mousemove', this.handleMouseMove);
-    document.removeEventListener('mousedown', this.handleMouseDown);
-    document.removeEventListener('pointerlockchange', this.handleLockChange);
+    this.removeInputListeners();
   }
 
   loop() {

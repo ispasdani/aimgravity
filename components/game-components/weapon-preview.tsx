@@ -18,6 +18,7 @@ export default function WeaponPreview() {
     // Initialize engine in preview mode
     const engine = new Engine(canvasRef.current, { fov });
     engine.previewMode = true;
+    engine.setupInputListeners();
     let isMounted = true;
 
     // Load the Glock model
@@ -43,6 +44,7 @@ export default function WeaponPreview() {
     
     return () => {
       isMounted = false;
+      engine.removeInputListeners();
       engine.destroy();
       engineRef.current = null;
     };
@@ -65,11 +67,23 @@ export default function WeaponPreview() {
   }, [fov]);
 
   return (
-    <div className="relative w-full h-full bg-[#050505] overflow-hidden">
+    <div className="relative w-full h-full bg-[#050505] overflow-hidden group cursor-crosshair">
       <canvas 
         ref={canvasRef} 
         className="block w-full h-full"
+        onClick={() => {
+          if (engineRef.current) {
+            engineRef.current.canvas.requestPointerLock();
+          }
+        }}
       />
+      
+      {/* Interaction Hint */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:bg-black/20 transition-all duration-500 opacity-0 group-hover:opacity-100">
+        <div className="px-4 py-2 bg-black/60 backdrop-blur-md border border-white/10 text-[9px] font-bold uppercase tracking-[0.2em] text-white/50">
+          Click to control camera
+        </div>
+      </div>
       
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
