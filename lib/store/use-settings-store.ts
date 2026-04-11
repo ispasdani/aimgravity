@@ -15,9 +15,12 @@ interface SettingsState {
   sensitivity: number;
   fov: number;
   tracersEnabled: boolean;
+  crouchMode: 'hold' | 'toggle';
+  crouchMode: 'hold' | 'toggle';
   
   // Actions
   toggleTracers: () => void;
+  setCrouchMode: (mode: 'hold' | 'toggle') => void;
   updateWeaponSettings: (settings: Partial<WeaponSettings>) => void;
   updateSensitivity: (sens: number) => void;
   updateFOV: (fov: number) => void;
@@ -40,6 +43,7 @@ export const useSettingsStore = create<SettingsState>()(
       sensitivity: 2.0,
       fov: 90,
       tracersEnabled: true,
+      crouchMode: 'hold',
 
       updateWeaponSettings: (newSettings) =>
         set((state) => ({
@@ -51,6 +55,7 @@ export const useSettingsStore = create<SettingsState>()(
       updateFOV: (fov) => set({ fov }),
 
       toggleTracers: () => set((state) => ({ tracersEnabled: !state.tracersEnabled })),
+      setCrouchMode: (mode) => set({ crouchMode: mode }),
 
       resetWeaponSettings: () =>
         set({ weaponSettings: { ...defaultWeaponSettings } }),

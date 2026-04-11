@@ -5,6 +5,7 @@ import { generateConcreteTexture, generateMetalTexture } from './textures';
 import { createPSXPistolGeometry } from './weapons/psx-pistol';
 import { TargetManager } from './targets/target-manager';
 import { TracerSystem } from './tracer-system';
+import { MovementSystem, CrouchMode } from './movement-system';
 
 export interface EngineSettings {
   fov?: number;
@@ -12,6 +13,7 @@ export interface EngineSettings {
   sensitivity?: number;
   targetSize?: number;
   tracersEnabled?: boolean;
+  crouchMode?: CrouchMode;
 }
 
 export interface GameState {
@@ -63,6 +65,7 @@ export class Engine {
 
   targetManager: TargetManager;
   tracerSystem!: TracerSystem;
+  movementSystem!: MovementSystem;
 
   onStateUpdate: ((state: GameState) => void) | null = null;
   onGameEnd: ((state: GameState) => void) | null = null;
@@ -160,6 +163,11 @@ export class Engine {
     this.tracerSystem = new TracerSystem(this.gl);
     if (this.settings.tracersEnabled !== undefined) {
       this.tracerSystem.enabled = this.settings.tracersEnabled;
+    }
+
+    this.movementSystem = new MovementSystem();
+    if (this.settings.crouchMode !== undefined) {
+      this.movementSystem.crouchMode = this.settings.crouchMode;
     }
 
     // Initial projection matrix
@@ -458,6 +466,7 @@ export class Engine {
 
   handleLockChange() {
     this.pointerLocked = document.pointerLockElement === this.canvas;
+    this.movementSystem.pointerLocked = this.pointerLocked;
   }
 
   handleLockError() {
@@ -495,6 +504,7 @@ export class Engine {
 
   start() {
     this.setupInputListeners();
+    this.movementSystem.attach();
     this.requestPointerLock();
 
     this.shots = 0;
@@ -527,6 +537,7 @@ export class Engine {
 
     document.exitPointerLock();
     this.removeInputListeners();
+    this.movementSystem.detach();
   }
 
   loop() {
@@ -559,6 +570,8 @@ export class Engine {
       this.mouseDeltaX = 0;
       this.mouseDeltaY = 0;
     }
+
+    this.movementSystem.update(dt, this.cameraPos, this.yaw);
 
     if (this.pendingShot) {
       this.pendingShot = false;

@@ -64,7 +64,9 @@ export default function SettingsPage() {
     sensitivity,
     updateSensitivity,
     tracersEnabled,
-    toggleTracers
+    toggleTracers,
+    crouchMode,
+    setCrouchMode
   } = useSettingsStore();
   const previewRef = React.useRef<HTMLDivElement>(null);
 
@@ -204,6 +206,25 @@ export default function SettingsPage() {
                       className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${tracersEnabled ? 'translate-x-2' : '-translate-x-2'}`}
                     />
                   </button>
+                </div>
+              </div>
+              <div className="space-y-2 pt-4 border-t border-white/5">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Crouch Mode</span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setCrouchMode('hold')}
+                      className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest transition-colors ${crouchMode === 'hold' ? 'bg-[#EE3F2C] text-white' : 'bg-white/5 text-white/50 hover:text-white'}`}
+                    >
+                      Hold
+                    </button>
+                    <button
+                      onClick={() => setCrouchMode('toggle')}
+                      className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest transition-colors ${crouchMode === 'toggle' ? 'bg-[#EE3F2C] text-white' : 'bg-white/5 text-white/50 hover:text-white'}`}
+                    >
+                      Toggle
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
