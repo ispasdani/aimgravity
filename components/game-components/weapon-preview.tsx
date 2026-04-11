@@ -11,12 +11,13 @@ export default function WeaponPreview() {
   const [isLoading, setIsLoading] = useState(true);
   const weaponSettings = useSettingsStore((state) => state.weaponSettings);
   const fov = useSettingsStore((state) => state.fov);
+  const tracersEnabled = useSettingsStore((state) => state.tracersEnabled);
 
   useEffect(() => {
     if (!canvasRef.current || engineRef.current) return;
     
     // Initialize engine in preview mode
-    const engine = new Engine(canvasRef.current, { fov });
+    const engine = new Engine(canvasRef.current, { fov, tracersEnabled });
     engine.previewMode = true;
     engine.setupInputListeners();
     let isMounted = true;
@@ -65,6 +66,13 @@ export default function WeaponPreview() {
         engineRef.current.updateSettings({ fov });
      }
   }, [fov]);
+
+  // Sync Tracers
+  useEffect(() => {
+     if (engineRef.current) {
+        engineRef.current.updateSettings({ tracersEnabled });
+     }
+  }, [tracersEnabled]);
 
   return (
     <div className="relative w-full h-full bg-[#050505] overflow-hidden group cursor-crosshair">

@@ -62,7 +62,9 @@ export default function SettingsPage() {
     fov,
     updateFOV,
     sensitivity,
-    updateSensitivity
+    updateSensitivity,
+    tracersEnabled,
+    toggleTracers
   } = useSettingsStore();
   const previewRef = React.useRef<HTMLDivElement>(null);
 
@@ -191,6 +193,19 @@ export default function SettingsPage() {
                 min={0.1} max={10.0} step={0.1} 
                 onChange={(v) => updateSensitivity(v)} 
               />
+              <div className="space-y-2 pt-4 border-t border-white/5">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Bullet Tracers</span>
+                  <button 
+                    onClick={toggleTracers}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ease-in-out fill-mode-forwards ${tracersEnabled ? 'bg-[#EE3F2C]' : 'bg-white/10'}`}
+                  >
+                    <span 
+                      className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${tracersEnabled ? 'translate-x-2' : '-translate-x-2'}`}
+                    />
+                  </button>
+                </div>
+              </div>
             </div>
           </section>
         </div>

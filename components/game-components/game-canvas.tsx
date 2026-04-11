@@ -9,7 +9,7 @@ export default function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<Engine | null>(null);
   
-  const { weaponSettings, fov, sensitivity } = useSettingsStore();
+  const { weaponSettings, fov, sensitivity, tracersEnabled } = useSettingsStore();
   
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [hasStarted, setHasStarted] = useState(false);
@@ -26,7 +26,8 @@ export default function GameCanvas() {
     const engine = new Engine(canvasRef.current, { 
       drillDuration: 30, 
       sensitivity, 
-      fov 
+      fov,
+      tracersEnabled
     });
 
     // Apply weapon settings

@@ -4,12 +4,14 @@ import { createSphereGeometry, createPlaneGeometry, createQuadGeometry } from '.
 import { generateConcreteTexture, generateMetalTexture } from './textures';
 import { createPSXPistolGeometry } from './weapons/psx-pistol';
 import { TargetManager } from './targets/target-manager';
+import { TracerSystem } from './tracer-system';
 
 export interface EngineSettings {
   fov?: number;
   drillDuration?: number;
   sensitivity?: number;
   targetSize?: number;
+  tracersEnabled?: boolean;
 }
 
 export interface GameState {
@@ -60,6 +62,7 @@ export class Engine {
   muzzleFlash: number = 0;
 
   targetManager: TargetManager;
+  tracerSystem!: TracerSystem;
 
   onStateUpdate: ((state: GameState) => void) | null = null;
   onGameEnd: ((state: GameState) => void) | null = null;
@@ -153,6 +156,11 @@ export class Engine {
     // Create textures
     this.concreteTexture = this.createTexture(generateConcreteTexture(256), 256)!;
     this.metalTexture = this.createTexture(generateMetalTexture(256), 256)!;
+
+    this.tracerSystem = new TracerSystem(this.gl);
+    if (this.settings.tracersEnabled !== undefined) {
+      this.tracerSystem.enabled = this.settings.tracersEnabled;
+    }
 
     // Initial projection matrix
     this.updateProjection();
@@ -499,6 +507,8 @@ export class Engine {
     this.recoil = 0;
     this.muzzleFlash = 0;
 
+    this.tracerSystem.reset();
+
     this.targetManager.reset();
     this.targetManager.spawnOptimalTargets(this.settings.targetSize);
     this.updateTargetBuffers();
@@ -558,6 +568,8 @@ export class Engine {
     this.recoil *= 0.85;
     this.muzzleFlash *= 0.7;
 
+    this.tracerSystem.update(dt);
+
     if (this.targetManager.activeCount < 3) {
       this.targetManager.spawnOptimalTargets(this.settings.targetSize);
       this.updateTargetBuffers(); // Need to push spawn to GPU
@@ -589,15 +601,42 @@ export class Engine {
 
     const hitIndex = this.targetManager.checkHit(this.cameraPos, dirX, dirY, dirZ);
 
+    let endX, endY, endZ;
+    let isHit = false;
+
     if (hitIndex >= 0) {
       this.hits++;
+      isHit = true;
+      
+      endX = this.targetManager.positions[hitIndex * 3];
+      endY = this.targetManager.positions[hitIndex * 3 + 1];
+      endZ = this.targetManager.positions[hitIndex * 3 + 2];
+
       this.targetManager.processHit(hitIndex);
 
       // Update GPU buffer immediately so target disappears
       const gl = this.gl;
       gl.bindBuffer(gl.ARRAY_BUFFER, this.targetActiveBuffer);
       gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.targetManager.active);
+    } else {
+      const maxDist = 30;
+      endX = this.cameraPos[0] + dirX * maxDist;
+      endY = this.cameraPos[1] + dirY * maxDist;
+      endZ = this.cameraPos[2] + dirZ * maxDist;
+
+      if (endY < 0) {
+        const floorT = -this.cameraPos[1] / dirY;
+        endX = this.cameraPos[0] + dirX * floorT;
+        endY = 0.01;
+        endZ = this.cameraPos[2] + dirZ * floorT;
+      }
     }
+
+    this.tracerSystem.addTracer(
+      this.cameraPos[0], this.cameraPos[1], this.cameraPos[2],
+      endX, endY, endZ,
+      isHit
+    );
   }
 
   updateTargetBuffers() {
@@ -668,6 +707,8 @@ export class Engine {
       gl.bindVertexArray(this.targetVAO);
       gl.drawElementsInstanced(gl.TRIANGLES, this.targetIndexCount, gl.UNSIGNED_SHORT, 0, this.targetManager.maxTargets);
     }
+
+    this.tracerSystem.render(this.viewProjMatrix);
 
     gl.clear(gl.DEPTH_BUFFER_BIT);
 
@@ -799,6 +840,9 @@ export class Engine {
 
   updateSettings(settings: EngineSettings) {
     this.settings = { ...this.settings, ...settings };
+    if (this.settings.tracersEnabled !== undefined && this.tracerSystem) {
+      this.tracerSystem.enabled = this.settings.tracersEnabled;
+    }
     this.updateProjection();
   }
 

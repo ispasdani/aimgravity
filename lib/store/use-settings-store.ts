@@ -14,8 +14,10 @@ interface SettingsState {
   weaponSettings: WeaponSettings;
   sensitivity: number;
   fov: number;
+  tracersEnabled: boolean;
   
   // Actions
+  toggleTracers: () => void;
   updateWeaponSettings: (settings: Partial<WeaponSettings>) => void;
   updateSensitivity: (sens: number) => void;
   updateFOV: (fov: number) => void;
@@ -37,6 +39,7 @@ export const useSettingsStore = create<SettingsState>()(
       weaponSettings: { ...defaultWeaponSettings },
       sensitivity: 2.0,
       fov: 90,
+      tracersEnabled: true,
 
       updateWeaponSettings: (newSettings) =>
         set((state) => ({
@@ -46,6 +49,8 @@ export const useSettingsStore = create<SettingsState>()(
       updateSensitivity: (sensitivity) => set({ sensitivity }),
       
       updateFOV: (fov) => set({ fov }),
+
+      toggleTracers: () => set((state) => ({ tracersEnabled: !state.tracersEnabled })),
 
       resetWeaponSettings: () =>
         set({ weaponSettings: { ...defaultWeaponSettings } }),

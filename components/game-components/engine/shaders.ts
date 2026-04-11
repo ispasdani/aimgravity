@@ -230,3 +230,72 @@ void main() {
   fragColor = vec4(color, 1.0);
 }
 `;
+
+export const TRACER_VS = `#version 300 es
+precision highp float;
+
+layout(location = 0) in vec3 a_position;
+layout(location = 1) in float a_alpha;
+
+uniform mat4 u_viewProj;
+
+out float v_alpha;
+
+void main() {
+  v_alpha = a_alpha;
+  gl_Position = u_viewProj * vec4(a_position, 1.0);
+}
+`;
+
+export const TRACER_FS = `#version 300 es
+precision highp float;
+
+in float v_alpha;
+
+uniform vec3 u_color;
+
+out vec4 fragColor;
+
+void main() {
+  fragColor = vec4(u_color, v_alpha);
+}
+`;
+
+export const IMPACT_VS = `#version 300 es
+precision highp float;
+
+layout(location = 0) in vec3 a_position;
+layout(location = 1) in vec3 a_instancePos;
+layout(location = 2) in float a_instanceAlpha;
+layout(location = 3) in float a_instanceScale;
+
+uniform mat4 u_viewProj;
+
+out float v_alpha;
+
+void main() {
+  v_alpha = a_instanceAlpha;
+  
+  vec3 worldPos = a_position * a_instanceScale + a_instancePos;
+  gl_Position = u_viewProj * vec4(worldPos, 1.0);
+}
+`;
+
+export const IMPACT_FS = `#version 300 es
+precision highp float;
+
+in float v_alpha;
+
+uniform vec3 u_hitColor;
+uniform vec3 u_missColor;
+uniform float u_isHit;
+
+out vec4 fragColor;
+
+void main() {
+  if (v_alpha < 0.01) discard;
+  
+  vec3 color = mix(u_missColor, u_hitColor, u_isHit);
+  fragColor = vec4(color, v_alpha);
+}
+`;
