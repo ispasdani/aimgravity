@@ -64,6 +64,20 @@ export default function SettingsPage() {
     sensitivity,
     updateSensitivity
   } = useSettingsStore();
+  const previewRef = React.useRef<HTMLDivElement>(null);
+
+  const toggleFullscreen = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (previewRef.current) {
+      if (!document.fullscreenElement) {
+        previewRef.current.requestFullscreen().catch((err) => {
+          console.error(`Error attempting to enable fullscreen: ${err.message}`);
+        });
+      } else {
+        document.exitFullscreen();
+      }
+    }
+  };
 
   return (
     <div className="max-w-6xl animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -185,6 +199,7 @@ export default function SettingsPage() {
         <div className="lg:col-span-7">
           <div className="sticky top-24 space-y-6">
              <div 
+              ref={previewRef}
               className="relative aspect-square md:aspect-video lg:aspect-square bg-black border border-white/10 overflow-hidden group shadow-2xl shadow-[#EE3F2C]/5" 
               style={clipPathStyle}
             >
@@ -205,9 +220,13 @@ export default function SettingsPage() {
                       [{weaponSettings.x.toFixed(2)}, {weaponSettings.y.toFixed(2)}, {weaponSettings.z.toFixed(2)}]
                     </div>
                  </div>
-                 <div className="w-12 h-12 border border-white/10 flex items-center justify-center">
-                    <Maximize2 size={16} className="text-white/20" />
-                 </div>
+                 <button 
+                  onClick={toggleFullscreen}
+                  className="w-12 h-12 border border-white/10 flex items-center justify-center pointer-events-auto bg-black/40 backdrop-blur-md hover:bg-[#EE3F2C]/20 hover:border-[#EE3F2C]/30 hover:text-[#EE3F2C] transition-all duration-300 group/btn"
+                  title="Toggle Fullscreen Preview"
+                 >
+                    <Maximize2 size={16} className="text-white/40 group-hover/btn:text-[#EE3F2C] transition-colors" />
+                 </button>
                </div>
             </div>
 

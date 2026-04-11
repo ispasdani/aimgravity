@@ -73,7 +73,7 @@ export default function WeaponPreview() {
         className="block w-full h-full"
         onClick={() => {
           if (engineRef.current) {
-            engineRef.current.canvas.requestPointerLock();
+            engineRef.current.requestPointerLock();
           }
         }}
       />

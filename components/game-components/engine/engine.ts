@@ -63,6 +63,7 @@ export class Engine {
 
   onStateUpdate: ((state: GameState) => void) | null = null;
   onGameEnd: ((state: GameState) => void) | null = null;
+  onPointerLockError: (() => void) | null = null;
 
   // WebGL Objects
   floorProgram!: WebGLProgram;
@@ -114,6 +115,7 @@ export class Engine {
     this.handleMouseMove = this.handleMouseMove.bind(this);
     this.handleMouseDown = this.handleMouseDown.bind(this);
     this.handleLockChange = this.handleLockChange.bind(this);
+    this.handleLockError = this.handleLockError.bind(this);
     this.handleResize = this.handleResize.bind(this);
     this.loop = this.loop.bind(this);
 
@@ -450,21 +452,42 @@ export class Engine {
     this.pointerLocked = document.pointerLockElement === this.canvas;
   }
 
+  handleLockError() {
+    console.warn(`[Engine ${this.instanceId}] Pointer lock denied (likely due to cooldown)`);
+    if (this.onPointerLockError) {
+      this.onPointerLockError();
+    }
+  }
+
+  async requestPointerLock() {
+    try {
+      const promise = this.canvas.requestPointerLock();
+      // Handle both legacy (no return) and modern (promise) behavior
+      if (promise && typeof (promise as any).catch === 'function') {
+        await promise;
+      }
+    } catch (e) {
+      this.handleLockError();
+    }
+  }
+
   setupInputListeners() {
     document.addEventListener('mousemove', this.handleMouseMove);
     document.addEventListener('mousedown', this.handleMouseDown);
     document.addEventListener('pointerlockchange', this.handleLockChange);
+    document.addEventListener('pointerlockerror', this.handleLockError);
   }
 
   removeInputListeners() {
     document.removeEventListener('mousemove', this.handleMouseMove);
     document.removeEventListener('mousedown', this.handleMouseDown);
     document.removeEventListener('pointerlockchange', this.handleLockChange);
+    document.removeEventListener('pointerlockerror', this.handleLockError);
   }
 
   start() {
     this.setupInputListeners();
-    this.canvas.requestPointerLock();
+    this.requestPointerLock();
 
     this.shots = 0;
     this.hits = 0;
@@ -701,6 +724,10 @@ export class Engine {
 
   setGameEndCallback(cb: (state: GameState) => void) {
     this.onGameEnd = cb;
+  }
+
+  setPointerLockErrorCallback(cb: () => void) {
+    this.onPointerLockError = cb;
   }
 
   private weaponBuffers: WebGLBuffer[] = [];
