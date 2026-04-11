@@ -10,7 +10,8 @@ import {
   Settings2, 
   User, 
   Zap,
-  ChevronRight
+  ChevronRight,
+  Crosshair
 } from 'lucide-react';
 
 const rubik = { variable: '--font-rubik' }; // Simplified for component logic
@@ -23,11 +24,11 @@ const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
   { icon: Target, label: 'Training Hub', href: '/dashboard/training' },
   { icon: Trophy, label: 'Benchmarks', href: '/dashboard/benchmarks' },
+  { icon: Crosshair, label: 'Weapon Settings', href: '/dashboard/settings' },
   { icon: Zap, label: 'Quickplay', href: '/quickplay' },
 ];
 
 const bottomItems = [
-  { icon: Settings2, label: 'Settings', href: '/dashboard/settings' },
   { icon: User, label: 'Profile', href: '/dashboard/profile' },
 ];
 

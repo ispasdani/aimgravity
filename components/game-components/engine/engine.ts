@@ -1,4 +1,4 @@
-import { createMat4, identityMat4, perspectiveMat4, multiplyMat4, rotateXMat4, rotateYMat4, translateMat4, scaleMat4, Mat4 } from './math';
+import { createMat4, identityMat4, perspectiveMat4, multiplyMat4, rotateXMat4, rotateYMat4, rotateZMat4, translateMat4, scaleMat4, Mat4 } from './math';
 import { FLOOR_VS, FLOOR_FS, WALL_VS, WALL_FS, TARGET_VS, TARGET_FS, CROSSHAIR_VS, CROSSHAIR_FS, WEAPON_VS, WEAPON_FS } from './shaders';
 import { createSphereGeometry, createPlaneGeometry, createQuadGeometry } from './geometry';
 import { generateConcreteTexture, generateMetalTexture } from './textures';
@@ -23,6 +23,7 @@ export class Engine {
   canvas: HTMLCanvasElement;
   settings: EngineSettings;
   gl: WebGL2RenderingContext;
+  previewMode: boolean = false;
 
   running: boolean = false;
   frameId: number = 0;
@@ -631,10 +632,12 @@ export class Engine {
     gl.bindVertexArray(this.wallVAO);
     gl.drawElements(gl.TRIANGLES, this.wallIndexCount, gl.UNSIGNED_SHORT, 0);
 
-    gl.useProgram(this.targetProgram);
-    gl.uniformMatrix4fv((this.targetProgram as any).uniforms.viewProj, false, this.viewProjMatrix);
-    gl.bindVertexArray(this.targetVAO);
-    gl.drawElementsInstanced(gl.TRIANGLES, this.targetIndexCount, gl.UNSIGNED_SHORT, 0, this.targetManager.maxTargets);
+    if (!this.previewMode) {
+      gl.useProgram(this.targetProgram);
+      gl.uniformMatrix4fv((this.targetProgram as any).uniforms.viewProj, false, this.viewProjMatrix);
+      gl.bindVertexArray(this.targetVAO);
+      gl.drawElementsInstanced(gl.TRIANGLES, this.targetIndexCount, gl.UNSIGNED_SHORT, 0, this.targetManager.maxTargets);
+    }
 
     gl.clear(gl.DEPTH_BUFFER_BIT);
 
