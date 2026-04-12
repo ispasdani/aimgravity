@@ -19,8 +19,11 @@ export function createMannequinGeometry() {
     ];
     
     for (const face of faces) {
-      for (const v of face.verts) {
-        positions.push(...v);
+      const v = face.verts;
+      const triVerts = [v[0], v[1], v[2], v[0], v[2], v[3]];
+      
+      for (const vert of triVerts) {
+        positions.push(...vert);
         normals.push(...face.norm);
         bodyParts.push(part);
       }
@@ -75,8 +78,11 @@ export function createMannequinGeometry() {
   // Head (sphere)
   addSphere(0, 0.85, 0, 0.12, 8, BODY_PARTS.HEAD);
   
+  // Neck
+  addBox(0, 0.6775, 0, 0.1, 0.105, 0.1, BODY_PARTS.HEAD);
+  
   // Torso
-  addBox(0, 0.35, 0, 0.35, 0.55, 0.2, BODY_PARTS.TORSO);
+  addBox(0, 0.35, 0, 0.38, 0.55, 0.2, BODY_PARTS.TORSO);
   
   // Arms
   addBox(-0.25, 0.4, 0, 0.12, 0.5, 0.12, BODY_PARTS.ARMS);
@@ -115,12 +121,22 @@ export function getMannequinHitboxes(targetX: number, targetY: number, targetZ: 
       radius: 0.12 * scale
     },
     { 
+      part: BODY_PARTS.HEAD, 
+      type: 'box',
+      x: targetX, 
+      y: targetY + 0.6775 * scale, 
+      z: targetZ,
+      hw: 0.05 * scale,
+      hh: 0.0525 * scale,
+      hd: 0.05 * scale
+    },
+    { 
       part: BODY_PARTS.TORSO, 
       type: 'box',
       x: targetX, 
       y: targetY + 0.35 * scale, 
       z: targetZ,
-      hw: 0.175 * scale,
+      hw: 0.19 * scale,
       hh: 0.275 * scale,
       hd: 0.1 * scale
     },
