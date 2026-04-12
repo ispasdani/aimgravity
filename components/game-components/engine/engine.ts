@@ -157,7 +157,6 @@ export class Engine {
     this.wallProgram = this.createProgram(WALL_VS, WALL_FS)!;
     this.targetProgram = this.createProgram(TARGET_VS, TARGET_FS)!;
     this.mannequinProgram = this.createProgram(MANNEQUIN_VS, MANNEQUIN_FS)!;
-    this.crosshairProgram = this.createProgram(CROSSHAIR_VS, CROSSHAIR_FS)!;
     this.weaponProgram = this.createWeaponProgram()!;
 
     // Create geometry
@@ -165,7 +164,6 @@ export class Engine {
     this.createWallGeometry();
     this.createTargetGeometry();
     this.createMannequinGeometryBuffer();
-    this.createCrosshairGeometry();
     this.createWeaponGeometry();
 
     // Create textures
@@ -408,29 +406,6 @@ export class Engine {
     gl.bindVertexArray(null);
   }
 
-  createCrosshairGeometry() {
-    const gl = this.gl;
-    const size = 10;
-    const gap = 3;
-
-    const positions = new Float32Array([
-      -size, 0, -gap, 0,
-      gap, 0, size, 0,
-      0, gap, 0, size,
-      0, -size, 0, -gap
-    ]);
-
-    this.crosshairVAO = gl.createVertexArray()!;
-    gl.bindVertexArray(this.crosshairVAO);
-
-    const posBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
-    gl.enableVertexAttribArray(0);
-    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-
-    gl.bindVertexArray(null);
-  }
 
   createWeaponGeometry() {
     const gl = this.gl;
@@ -924,13 +899,6 @@ export class Engine {
     gl.drawElements(gl.TRIANGLES, this.weaponIndexCount, this.weaponIndexType, 0);
 
     gl.enable(gl.CULL_FACE);
-
-    gl.disable(gl.DEPTH_TEST);
-    gl.useProgram(this.crosshairProgram);
-    gl.uniform2f((this.crosshairProgram as any).uniforms.resolution, this.canvas.width / 2, this.canvas.height / 2);
-    gl.bindVertexArray(this.crosshairVAO);
-    gl.drawArrays(gl.LINES, 0, 8);
-    gl.enable(gl.DEPTH_TEST);
   }
 
   setStateUpdateCallback(cb: (state: GameState) => void) {
@@ -1028,7 +996,6 @@ export class Engine {
     gl.deleteProgram(this.floorProgram);
     gl.deleteProgram(this.wallProgram);
     gl.deleteProgram(this.targetProgram);
-    gl.deleteProgram(this.crosshairProgram);
     gl.deleteProgram(this.weaponProgram);
     gl.deleteTexture(this.concreteTexture);
     gl.deleteTexture(this.metalTexture);

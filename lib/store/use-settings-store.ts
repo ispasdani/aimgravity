@@ -17,8 +17,20 @@ export interface WeaponSettings {
   scale: number;
 }
 
+export interface CrosshairSettings {
+  size: number;
+  thickness: number;
+  gap: number;
+  dot: boolean;
+  outline: boolean;
+  outlineThickness: number;
+  color: string;
+  alpha: number;
+}
+
 interface SettingsState {
   weaponSettings: WeaponSettings;
+  crosshairSettings: CrosshairSettings;
   sensitivity: number;
   fov: number;
   tracersEnabled: boolean;
@@ -33,9 +45,11 @@ interface SettingsState {
   addSessionHit: (hit: HitEvent) => void;
   clearSessionHits: () => void;
   updateWeaponSettings: (settings: Partial<WeaponSettings>) => void;
+  updateCrosshairSettings: (settings: Partial<CrosshairSettings>) => void;
   updateSensitivity: (sens: number) => void;
   updateFOV: (fov: number) => void;
   resetWeaponSettings: () => void;
+  resetCrosshairSettings: () => void;
 }
 
 const defaultWeaponSettings: WeaponSettings = {
@@ -47,10 +61,22 @@ const defaultWeaponSettings: WeaponSettings = {
   scale: 1.1,
 };
 
+const defaultCrosshairSettings: CrosshairSettings = {
+  size: 4,
+  thickness: 1.5,
+  gap: 1.0,
+  dot: false,
+  outline: true,
+  outlineThickness: 1.0,
+  color: '#00FF00',
+  alpha: 1.0,
+};
+
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       weaponSettings: { ...defaultWeaponSettings },
+      crosshairSettings: { ...defaultCrosshairSettings },
       sensitivity: 2.0,
       fov: 90,
       tracersEnabled: true,
@@ -61,6 +87,11 @@ export const useSettingsStore = create<SettingsState>()(
       updateWeaponSettings: (newSettings) =>
         set((state) => ({
           weaponSettings: { ...state.weaponSettings, ...newSettings },
+        })),
+
+      updateCrosshairSettings: (newSettings) =>
+        set((state) => ({
+          crosshairSettings: { ...state.crosshairSettings, ...newSettings },
         })),
 
       updateSensitivity: (sensitivity) => set({ sensitivity }),
@@ -75,6 +106,9 @@ export const useSettingsStore = create<SettingsState>()(
 
       resetWeaponSettings: () =>
         set({ weaponSettings: { ...defaultWeaponSettings } }),
+      
+      resetCrosshairSettings: () =>
+        set({ crosshairSettings: { ...defaultCrosshairSettings } }),
     }),
     {
       name: 'aimgravity-settings', // name of the item in storage (must be unique)

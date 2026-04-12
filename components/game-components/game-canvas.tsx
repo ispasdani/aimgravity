@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Engine, GameState } from './engine/engine';
 import { loadGLB } from './engine/loaders/glb-loader';
 import { useSettingsStore } from '@/lib/store/use-settings-store';
+import Crosshair from './crosshair';
 
 export default function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -202,6 +203,10 @@ export default function GameCanvas() {
                 </p>
               </div>
             </div>
+          )}
+
+          {isPointerLocked && !pointerLockDenied && (
+             <Crosshair />
           )}
         </>
       )}

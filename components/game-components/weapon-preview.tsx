@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Engine } from './engine/engine';
 import { loadGLB } from './engine/loaders/glb-loader';
 import { useSettingsStore } from '@/lib/store/use-settings-store';
+import Crosshair from './crosshair';
 
 export default function WeaponPreview() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -75,7 +76,7 @@ export default function WeaponPreview() {
   }, [tracersEnabled]);
 
   return (
-    <div className="relative w-full h-full bg-[#050505] overflow-hidden group cursor-crosshair">
+    <div className="relative w-full h-full bg-[#050505] overflow-hidden group cursor-none">
       <canvas 
         ref={canvasRef} 
         className="block w-full h-full"
@@ -104,9 +105,11 @@ export default function WeaponPreview() {
 
       {/* Grid Overlay for alignment */}
       <div className="absolute inset-0 pointer-events-none border border-white/5">
-        <div className="absolute top-1/2 left-0 w-full h-[1px] bg-white/5" />
-        <div className="absolute top-0 left-1/2 w-[1px] h-full bg-white/5" />
+        <div className="absolute top-1/2 left-0 w-full h-[1px] bg-white/5 z-0" />
+        <div className="absolute top-0 left-1/2 w-[1px] h-full bg-white/5 z-0" />
       </div>
+
+      <Crosshair />
     </div>
   );
 }
