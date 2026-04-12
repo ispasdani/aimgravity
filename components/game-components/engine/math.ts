@@ -217,3 +217,73 @@ export function invertMat4(out: Mat4, a: Mat4): Mat4 | null {
   
   return out;
 }
+
+export function rayBoxIntersect(
+  rayOrigin: number[], 
+  rayDir: number[], 
+  boxCenter: { x: number, y: number, z: number }, 
+  boxHalfSize: { hw: number, hh: number, hd: number }
+): number {
+  const ox = rayOrigin[0] - boxCenter.x;
+  const oy = rayOrigin[1] - boxCenter.y;
+  const oz = rayOrigin[2] - boxCenter.z;
+  
+  const dx = rayDir[0], dy = rayDir[1], dz = rayDir[2];
+  const hw = boxHalfSize.hw, hh = boxHalfSize.hh, hd = boxHalfSize.hd;
+  
+  let tmin = -Infinity, tmax = Infinity;
+  
+  if (Math.abs(dx) > 0.0001) {
+    const t1 = (-hw - ox) / dx;
+    const t2 = (hw - ox) / dx;
+    tmin = Math.max(tmin, Math.min(t1, t2));
+    tmax = Math.min(tmax, Math.max(t1, t2));
+  } else if (ox < -hw || ox > hw) {
+    return -1;
+  }
+  
+  if (Math.abs(dy) > 0.0001) {
+    const t1 = (-hh - oy) / dy;
+    const t2 = (hh - oy) / dy;
+    tmin = Math.max(tmin, Math.min(t1, t2));
+    tmax = Math.min(tmax, Math.max(t1, t2));
+  } else if (oy < -hh || oy > hh) {
+    return -1;
+  }
+  
+  if (Math.abs(dz) > 0.0001) {
+    const t1 = (-hd - oz) / dz;
+    const t2 = (hd - oz) / dz;
+    tmin = Math.max(tmin, Math.min(t1, t2));
+    tmax = Math.min(tmax, Math.max(t1, t2));
+  } else if (oz < -hd || oz > hd) {
+    return -1;
+  }
+  
+  if (tmax < 0 || tmin > tmax) return -1;
+  return tmin > 0 ? tmin : tmax;
+}
+
+export function raySphereIntersect(
+  rayOrigin: number[], 
+  rayDir: number[], 
+  sphereCenter: { x: number, y: number, z: number }, 
+  radius: number
+): number {
+  const ox = rayOrigin[0] - sphereCenter.x;
+  const oy = rayOrigin[1] - sphereCenter.y;
+  const oz = rayOrigin[2] - sphereCenter.z;
+  
+  const dx = rayDir[0], dy = rayDir[1], dz = rayDir[2];
+  
+  const a = dx * dx + dy * dy + dz * dz;
+  const b = 2 * (ox * dx + oy * dy + oz * dz);
+  const c = ox * ox + oy * oy + oz * oz - radius * radius;
+  
+  const disc = b * b - 4 * a * c;
+  
+  if (disc < 0) return -1;
+  
+  const t = (-b - Math.sqrt(disc)) / (2 * a);
+  return t > 0 ? t : -1;
+}

@@ -299,3 +299,83 @@ void main() {
   fragColor = vec4(color, v_alpha);
 }
 `;
+
+export const MANNEQUIN_VS = `#version 300 es
+precision highp float;
+
+layout(location = 0) in vec3 a_position;
+layout(location = 1) in vec3 a_normal;
+layout(location = 2) in float a_bodyPart;
+
+uniform mat4 u_viewProj;
+uniform mat4 u_model;
+
+out vec3 v_normal;
+out float v_bodyPart;
+out vec3 v_worldPos;
+
+void main() {
+  vec4 worldPos = u_model * vec4(a_position, 1.0);
+  v_worldPos = worldPos.xyz;
+  v_normal = mat3(u_model) * a_normal;
+  v_bodyPart = a_bodyPart;
+  gl_Position = u_viewProj * worldPos;
+}
+`;
+
+export const MANNEQUIN_FS = `#version 300 es
+precision highp float;
+
+in vec3 v_normal;
+in float v_bodyPart;
+in vec3 v_worldPos;
+
+uniform float u_active;
+uniform float u_health;
+uniform float u_damageFlash;
+
+out vec4 fragColor;
+
+void main() {
+  if (u_active < 0.5) discard;
+  
+  // Body part colors (CS2 terrorist-inspired)
+  vec3 headColor = vec3(0.9, 0.75, 0.6);
+  vec3 torsoColor = vec3(0.4, 0.35, 0.3);
+  vec3 armColor = vec3(0.5, 0.45, 0.35);
+  vec3 legColor = vec3(0.25, 0.22, 0.2);
+  
+  vec3 baseColor;
+  if (v_bodyPart < 0.5) {
+    baseColor = headColor;
+  } else if (v_bodyPart < 1.5) {
+    baseColor = torsoColor;
+  } else if (v_bodyPart < 2.5) {
+    baseColor = armColor;
+  } else {
+    baseColor = legColor;
+  }
+  
+  // Tint red based on damage taken
+  float healthFactor = u_health / 100.0;
+  vec3 damagedColor = mix(vec3(0.8, 0.2, 0.1), baseColor, healthFactor);
+  
+  // Flash red on hit
+  baseColor = mix(damagedColor, vec3(1.0, 0.3, 0.2), u_damageFlash);
+  
+  // Simple lighting
+  vec3 lightDir = normalize(vec3(0.3, 1.0, 0.5));
+  float diff = max(dot(normalize(v_normal), lightDir), 0.0);
+  float ambient = 0.4;
+  
+  vec3 color = baseColor * (ambient + diff * 0.6);
+  
+  // Rim light
+  vec3 viewDir = normalize(-v_worldPos);
+  float rim = 1.0 - max(dot(normalize(v_normal), viewDir), 0.0);
+  rim = pow(rim, 3.0);
+  color += vec3(1.0, 0.3, 0.1) * rim * 0.3;
+  
+  fragColor = vec4(color, 1.0);
+}
+`;

@@ -1,5 +1,12 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { HitEvent } from '../../components/game-components/engine/damage-system';
+
+export enum GameMode {
+  SPHERES = 'spheres',
+  MANNEQUIN_ONE_SHOT = 'mannequin_one_shot',
+  MANNEQUIN_DAMAGE = 'mannequin_damage'
+}
 
 export interface WeaponSettings {
   x: number;
@@ -16,11 +23,15 @@ interface SettingsState {
   fov: number;
   tracersEnabled: boolean;
   crouchMode: 'hold' | 'toggle';
-  crouchMode: 'hold' | 'toggle';
+  gameMode: GameMode;
+  sessionHits: HitEvent[];
   
   // Actions
   toggleTracers: () => void;
   setCrouchMode: (mode: 'hold' | 'toggle') => void;
+  setGameMode: (mode: GameMode) => void;
+  addSessionHit: (hit: HitEvent) => void;
+  clearSessionHits: () => void;
   updateWeaponSettings: (settings: Partial<WeaponSettings>) => void;
   updateSensitivity: (sens: number) => void;
   updateFOV: (fov: number) => void;
@@ -44,6 +55,8 @@ export const useSettingsStore = create<SettingsState>()(
       fov: 90,
       tracersEnabled: true,
       crouchMode: 'hold',
+      gameMode: GameMode.SPHERES,
+      sessionHits: [],
 
       updateWeaponSettings: (newSettings) =>
         set((state) => ({
@@ -56,6 +69,9 @@ export const useSettingsStore = create<SettingsState>()(
 
       toggleTracers: () => set((state) => ({ tracersEnabled: !state.tracersEnabled })),
       setCrouchMode: (mode) => set({ crouchMode: mode }),
+      setGameMode: (mode) => set({ gameMode: mode }),
+      addSessionHit: (hit) => set((state) => ({ sessionHits: [...state.sessionHits, hit] })),
+      clearSessionHits: () => set({ sessionHits: [] }),
 
       resetWeaponSettings: () =>
         set({ weaponSettings: { ...defaultWeaponSettings } }),

@@ -4,6 +4,11 @@ import { createSphereGeometry, createPlaneGeometry, createQuadGeometry } from '.
 import { generateConcreteTexture, generateMetalTexture } from './textures';
 import { createPSXPistolGeometry } from './weapons/psx-pistol';
 import { TargetManager } from './targets/target-manager';
+import { MannequinManager, createMannequinGeometry, getMannequinHitboxes } from './targets/mannequin';
+import { calculateDamage, BODY_PARTS, HitEvent } from './damage-system';
+import { rayBoxIntersect, raySphereIntersect } from './math';
+import { MANNEQUIN_VS, MANNEQUIN_FS } from './shaders';
+import { GameMode, useSettingsStore } from '../../../lib/store/use-settings-store';
 import { TracerSystem } from './tracer-system';
 import { MovementSystem, CrouchMode } from './movement-system';
 
@@ -64,6 +69,7 @@ export class Engine {
   muzzleFlash: number = 0;
 
   targetManager: TargetManager;
+  mannequinManager: MannequinManager;
   tracerSystem!: TracerSystem;
   movementSystem!: MovementSystem;
 
@@ -75,18 +81,21 @@ export class Engine {
   floorProgram!: WebGLProgram;
   wallProgram!: WebGLProgram;
   targetProgram!: WebGLProgram;
+  mannequinProgram!: WebGLProgram;
   crosshairProgram!: WebGLProgram;
   weaponProgram!: WebGLProgram;
 
   floorVAO!: WebGLVertexArrayObject;
   wallVAO!: WebGLVertexArrayObject;
   targetVAO!: WebGLVertexArrayObject;
+  mannequinVAO!: WebGLVertexArrayObject;
   crosshairVAO!: WebGLVertexArrayObject;
   weaponVAO!: WebGLVertexArrayObject;
 
   floorIndexCount: number = 0;
   wallIndexCount: number = 0;
   targetIndexCount: number = 0;
+  mannequinIndexCount: number = 0;
   weaponIndexCount: number = 0;
   weaponIndexType: number = 5123; // Default UNSIGNED_SHORT (5123)
 
@@ -117,6 +126,7 @@ export class Engine {
 
     this.gl = gl;
     this.targetManager = new TargetManager(50);
+    this.mannequinManager = new MannequinManager(10);
 
     this.handleMouseMove = this.handleMouseMove.bind(this);
     this.handleMouseDown = this.handleMouseDown.bind(this);
@@ -146,6 +156,7 @@ export class Engine {
     this.floorProgram = this.createProgram(FLOOR_VS, FLOOR_FS)!;
     this.wallProgram = this.createProgram(WALL_VS, WALL_FS)!;
     this.targetProgram = this.createProgram(TARGET_VS, TARGET_FS)!;
+    this.mannequinProgram = this.createProgram(MANNEQUIN_VS, MANNEQUIN_FS)!;
     this.crosshairProgram = this.createProgram(CROSSHAIR_VS, CROSSHAIR_FS)!;
     this.weaponProgram = this.createWeaponProgram()!;
 
@@ -153,6 +164,7 @@ export class Engine {
     this.createFloorGeometry();
     this.createWallGeometry();
     this.createTargetGeometry();
+    this.createMannequinGeometryBuffer();
     this.createCrosshairGeometry();
     this.createWeaponGeometry();
 
@@ -360,6 +372,42 @@ export class Engine {
     gl.bindVertexArray(null);
   }
 
+  createMannequinGeometryBuffer() {
+    const gl = this.gl;
+    const geo = createMannequinGeometry();
+
+    this.mannequinVAO = gl.createVertexArray()!;
+    gl.bindVertexArray(this.mannequinVAO);
+
+    // Positions
+    const posBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, geo.positions, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+
+    // Normals
+    const normBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, normBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, geo.normals, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(1);
+    gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+
+    // Body part ID
+    const bodyPartBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, bodyPartBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, geo.bodyParts, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(2);
+    gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 0, 0);
+
+    const indexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, geo.indices, gl.STATIC_DRAW);
+
+    this.mannequinIndexCount = geo.indices.length;
+    gl.bindVertexArray(null);
+  }
+
   createCrosshairGeometry() {
     const gl = this.gl;
     const size = 10;
@@ -520,8 +568,15 @@ export class Engine {
     this.tracerSystem.reset();
 
     this.targetManager.reset();
-    this.targetManager.spawnOptimalTargets(this.settings.targetSize);
-    this.updateTargetBuffers();
+    this.mannequinManager.reset();
+
+    const gameMode = useSettingsStore.getState().gameMode;
+    if (gameMode === GameMode.SPHERES) {
+      this.targetManager.spawnOptimalTargets(this.settings.targetSize);
+      this.updateTargetBuffers();
+    } else {
+      this.mannequinManager.spawnMannequin(this.settings.targetSize);
+    }
 
     this.running = true;
     this.lastTime = performance.now();
@@ -583,9 +638,14 @@ export class Engine {
 
     this.tracerSystem.update(dt);
 
-    if (this.targetManager.activeCount < 3) {
-      this.targetManager.spawnOptimalTargets(this.settings.targetSize);
-      this.updateTargetBuffers(); // Need to push spawn to GPU
+    const gameMode = useSettingsStore.getState().gameMode;
+    if (gameMode === GameMode.SPHERES) {
+      if (this.targetManager.activeCount < 3) {
+        this.targetManager.spawnOptimalTargets(this.settings.targetSize);
+        this.updateTargetBuffers(); // Need to push spawn to GPU
+      }
+    } else {
+      this.mannequinManager.update(dt);
     }
 
     if (this.onStateUpdate) {
@@ -612,36 +672,115 @@ export class Engine {
     const dirY = sinPitch;
     const dirZ = -cosYaw * cosPitch;
 
-    const hitIndex = this.targetManager.checkHit(this.cameraPos, dirX, dirY, dirZ);
-
+    const gameMode = useSettingsStore.getState().gameMode;
     let endX, endY, endZ;
     let isHit = false;
 
-    if (hitIndex >= 0) {
-      this.hits++;
-      isHit = true;
-      
-      endX = this.targetManager.positions[hitIndex * 3];
-      endY = this.targetManager.positions[hitIndex * 3 + 1];
-      endZ = this.targetManager.positions[hitIndex * 3 + 2];
+    if (gameMode === GameMode.SPHERES) {
+      const hitIndex = this.targetManager.checkHit(this.cameraPos, dirX, dirY, dirZ);
 
-      this.targetManager.processHit(hitIndex);
+      if (hitIndex >= 0) {
+        this.hits++;
+        isHit = true;
+        
+        endX = this.targetManager.positions[hitIndex * 3];
+        endY = this.targetManager.positions[hitIndex * 3 + 1];
+        endZ = this.targetManager.positions[hitIndex * 3 + 2];
 
-      // Update GPU buffer immediately so target disappears
-      const gl = this.gl;
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.targetActiveBuffer);
-      gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.targetManager.active);
+        this.targetManager.processHit(hitIndex);
+
+        // Update GPU buffer immediately so target disappears
+        const gl = this.gl;
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.targetActiveBuffer);
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.targetManager.active);
+      } else {
+        const maxDist = 30;
+        endX = this.cameraPos[0] + dirX * maxDist;
+        endY = this.cameraPos[1] + dirY * maxDist;
+        endZ = this.cameraPos[2] + dirZ * maxDist;
+
+        if (endY < 0) {
+          const floorT = -this.cameraPos[1] / dirY;
+          endX = this.cameraPos[0] + dirX * floorT;
+          endY = 0.01;
+          endZ = this.cameraPos[2] + dirZ * floorT;
+        }
+      }
     } else {
-      const maxDist = 30;
-      endX = this.cameraPos[0] + dirX * maxDist;
-      endY = this.cameraPos[1] + dirY * maxDist;
-      endZ = this.cameraPos[2] + dirZ * maxDist;
+      // Mannequin logic
+      let hitTargetIndex = -1;
+      let hitBodyPart = -1;
+      let closestT = Infinity;
+      const rayDir = [dirX, dirY, dirZ];
 
-      if (endY < 0) {
-        const floorT = -this.cameraPos[1] / dirY;
-        endX = this.cameraPos[0] + dirX * floorT;
-        endY = 0.01;
-        endZ = this.cameraPos[2] + dirZ * floorT;
+      for (let i = 0; i < this.mannequinManager.maxTargets; i++) {
+        if (this.mannequinManager.active[i] < 0.5) continue;
+
+        const tx = this.mannequinManager.positions[i * 3];
+        const ty = this.mannequinManager.positions[i * 3 + 1];
+        const tz = this.mannequinManager.positions[i * 3 + 2];
+        const scale = this.mannequinManager.scales[i];
+
+        const hitboxes = getMannequinHitboxes(tx, ty, tz, scale);
+
+        for (const hitbox of hitboxes) {
+          let t = -1;
+          if (hitbox.type === 'sphere') {
+            t = raySphereIntersect(this.cameraPos, rayDir, hitbox, hitbox.radius);
+          } else if (hitbox.type === 'box') {
+            t = rayBoxIntersect(this.cameraPos, rayDir, hitbox, { hw: hitbox.hw, hh: hitbox.hh, hd: hitbox.hd });
+          }
+
+          if (t > 0 && t < closestT) {
+            closestT = t;
+            hitTargetIndex = i;
+            hitBodyPart = hitbox.part;
+          }
+        }
+      }
+
+      if (hitTargetIndex >= 0) {
+        endX = this.cameraPos[0] + dirX * closestT;
+        endY = this.cameraPos[1] + dirY * closestT;
+        endZ = this.cameraPos[2] + dirZ * closestT;
+        isHit = true;
+        this.hits++;
+
+        // Calculate Damage
+        const damage = calculateDamage("GLOCK", hitBodyPart); // Using GLOCK temporarily, can store actual weapon later
+
+        // Log Hit
+        useSettingsStore.getState().addSessionHit({
+          hitPos: { x: endX, y: endY, z: endZ },
+          bodyPart: hitBodyPart,
+          damage,
+          targetId: hitTargetIndex,
+          timestamp: Date.now()
+        });
+
+        if (gameMode === GameMode.MANNEQUIN_ONE_SHOT) {
+          this.mannequinManager.active[hitTargetIndex] = 0;
+          this.mannequinManager.activeCount--;
+        } else {
+          this.mannequinManager.health[hitTargetIndex] -= damage;
+          this.mannequinManager.damageFlash[hitTargetIndex] = 1.0;
+          if (this.mannequinManager.health[hitTargetIndex] <= 0) {
+            this.mannequinManager.active[hitTargetIndex] = 0;
+            this.mannequinManager.activeCount--;
+          }
+        }
+      } else {
+        const maxDist = 30;
+        endX = this.cameraPos[0] + dirX * maxDist;
+        endY = this.cameraPos[1] + dirY * maxDist;
+        endZ = this.cameraPos[2] + dirZ * maxDist;
+
+        if (endY < 0) {
+          const floorT = -this.cameraPos[1] / dirY;
+          endX = this.cameraPos[0] + dirX * floorT;
+          endY = 0.01;
+          endZ = this.cameraPos[2] + dirZ * floorT;
+        }
       }
     }
 
@@ -715,10 +854,32 @@ export class Engine {
     gl.drawElements(gl.TRIANGLES, this.wallIndexCount, gl.UNSIGNED_SHORT, 0);
 
     if (!this.previewMode) {
-      gl.useProgram(this.targetProgram);
-      gl.uniformMatrix4fv((this.targetProgram as any).uniforms.viewProj, false, this.viewProjMatrix);
-      gl.bindVertexArray(this.targetVAO);
-      gl.drawElementsInstanced(gl.TRIANGLES, this.targetIndexCount, gl.UNSIGNED_SHORT, 0, this.targetManager.maxTargets);
+      const gameMode = useSettingsStore.getState().gameMode;
+      if (gameMode === GameMode.SPHERES) {
+        gl.useProgram(this.targetProgram);
+        gl.uniformMatrix4fv((this.targetProgram as any).uniforms.viewProj, false, this.viewProjMatrix);
+        gl.bindVertexArray(this.targetVAO);
+        gl.drawElementsInstanced(gl.TRIANGLES, this.targetIndexCount, gl.UNSIGNED_SHORT, 0, this.targetManager.maxTargets);
+      } else {
+        gl.useProgram(this.mannequinProgram);
+        const uViewProj = gl.getUniformLocation(this.mannequinProgram, 'u_viewProj');
+        const uModel = gl.getUniformLocation(this.mannequinProgram, 'u_model');
+        const uActive = gl.getUniformLocation(this.mannequinProgram, 'u_active');
+        const uHealth = gl.getUniformLocation(this.mannequinProgram, 'u_health');
+        const uDamageFlash = gl.getUniformLocation(this.mannequinProgram, 'u_damageFlash');
+
+        gl.uniformMatrix4fv(uViewProj, false, this.viewProjMatrix);
+        gl.bindVertexArray(this.mannequinVAO);
+
+        for (let i = 0; i < this.mannequinManager.maxTargets; i++) {
+          if (this.mannequinManager.active[i] < 0.5) continue;
+          gl.uniform1f(uActive, this.mannequinManager.active[i]);
+          gl.uniform1f(uHealth, this.mannequinManager.health[i]);
+          gl.uniform1f(uDamageFlash, this.mannequinManager.damageFlash[i]);
+          gl.uniformMatrix4fv(uModel, false, this.mannequinManager.modelMatrices[i]);
+          gl.drawElements(gl.TRIANGLES, this.mannequinIndexCount, gl.UNSIGNED_SHORT, 0);
+        }
+      }
     }
 
     this.tracerSystem.render(this.viewProjMatrix);
