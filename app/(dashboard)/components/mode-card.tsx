@@ -10,6 +10,7 @@ export interface ModeCardProps {
   stats?: string;
   difficulty?: 'Beginner' | 'Intermediate' | 'Advanced';
   color?: string;
+  onClick?: () => void;
 }
 
 const clipPathStyle = {
@@ -22,7 +23,8 @@ export default function ModeCard({
   icon: Icon, 
   stats, 
   difficulty = 'Beginner',
-  color = '#EE3F2C' 
+  color = '#EE3F2C',
+  onClick
 }: ModeCardProps) {
   const difficultyColors = {
     Beginner: 'text-green-400',
@@ -70,6 +72,7 @@ export default function ModeCard({
         </p>
 
         <button 
+          onClick={onClick}
           className="flex items-center gap-2 px-6 py-3 bg-white/5 border border-white/10 text-white font-bold uppercase text-xs tracking-widest hover:bg-[#EE3F2C] hover:border-[#EE3F2C] transition-all duration-300"
           style={clipPathStyle}
         >
