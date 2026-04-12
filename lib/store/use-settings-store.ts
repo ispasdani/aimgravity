@@ -4,6 +4,8 @@ import { HitEvent } from '../../components/game-components/engine/damage-system'
 
 export enum GameMode {
   SPHERES = 'spheres',
+  MOVING_SPHERES = 'moving_spheres',
+  FLICK = 'flick',
   MANNEQUIN_ONE_SHOT = 'mannequin_one_shot',
   MANNEQUIN_DAMAGE = 'mannequin_damage'
 }
@@ -37,7 +39,11 @@ interface SettingsState {
   crouchMode: 'hold' | 'toggle';
   gameMode: GameMode;
   sessionHits: HitEvent[];
-  
+  /** Speed (world units/s) of spheres in Moving Spheres mode */
+  sphereSpeed: number;
+  /** Minimum angular displacement (degrees) between flick targets */
+  flickMinAngle: number;
+
   // Actions
   toggleTracers: () => void;
   setCrouchMode: (mode: 'hold' | 'toggle') => void;
@@ -48,6 +54,8 @@ interface SettingsState {
   updateCrosshairSettings: (settings: Partial<CrosshairSettings>) => void;
   updateSensitivity: (sens: number) => void;
   updateFOV: (fov: number) => void;
+  updateSphereSpeed: (speed: number) => void;
+  updateFlickMinAngle: (angle: number) => void;
   resetWeaponSettings: () => void;
   resetCrosshairSettings: () => void;
 }
@@ -83,6 +91,8 @@ export const useSettingsStore = create<SettingsState>()(
       crouchMode: 'hold',
       gameMode: GameMode.SPHERES,
       sessionHits: [],
+      sphereSpeed: 2.5,
+      flickMinAngle: 45,
 
       updateWeaponSettings: (newSettings) =>
         set((state) => ({
@@ -97,6 +107,10 @@ export const useSettingsStore = create<SettingsState>()(
       updateSensitivity: (sensitivity) => set({ sensitivity }),
       
       updateFOV: (fov) => set({ fov }),
+
+      updateSphereSpeed: (sphereSpeed) => set({ sphereSpeed }),
+
+      updateFlickMinAngle: (flickMinAngle) => set({ flickMinAngle }),
 
       toggleTracers: () => set((state) => ({ tracersEnabled: !state.tracersEnabled })),
       setCrouchMode: (mode) => set({ crouchMode: mode }),

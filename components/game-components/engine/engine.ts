@@ -26,6 +26,8 @@ export interface GameState {
   shots: number;
   hits: number;
   accuracy: number;
+  /** Average reaction time in ms (Flick mode only) */
+  avgReactionMs?: number;
 }
 
 export class Engine {
@@ -72,6 +74,9 @@ export class Engine {
   mannequinManager: MannequinManager;
   tracerSystem!: TracerSystem;
   movementSystem!: MovementSystem;
+
+  /** Reaction time samples collected in Flick mode (ms per hit) */
+  flickReactionTimes: number[] = [];
 
   onStateUpdate: ((state: GameState) => void) | null = null;
   onGameEnd: ((state: GameState) => void) | null = null;
@@ -544,10 +549,20 @@ export class Engine {
 
     this.targetManager.reset();
     this.mannequinManager.reset();
+    this.flickReactionTimes = [];
 
-    const gameMode = useSettingsStore.getState().gameMode;
+    const { gameMode, sphereSpeed, flickMinAngle } = useSettingsStore.getState();
+
     if (gameMode === GameMode.SPHERES) {
       this.targetManager.spawnOptimalTargets(this.settings.targetSize);
+      this.updateTargetBuffers();
+    } else if (gameMode === GameMode.MOVING_SPHERES) {
+      this.targetManager.spawnMovingSpheres(this.settings.targetSize, sphereSpeed);
+      this.updateTargetBuffers();
+    } else if (gameMode === GameMode.FLICK) {
+      // seed lastFlickPos well out of the way so first spawn is unconstrained
+      this.targetManager.lastFlickPos = [0, 1.7, -8];
+      this.targetManager.spawnFlickTarget(this.cameraPos, this.settings.targetSize, flickMinAngle);
       this.updateTargetBuffers();
     } else {
       this.mannequinManager.spawnMannequin(this.settings.targetSize);
@@ -613,11 +628,23 @@ export class Engine {
 
     this.tracerSystem.update(dt);
 
-    const gameMode = useSettingsStore.getState().gameMode;
+    const { gameMode, sphereSpeed, flickMinAngle } = useSettingsStore.getState();
+
     if (gameMode === GameMode.SPHERES) {
       if (this.targetManager.activeCount < 3) {
         this.targetManager.spawnOptimalTargets(this.settings.targetSize);
-        this.updateTargetBuffers(); // Need to push spawn to GPU
+        this.updateTargetBuffers();
+      }
+    } else if (gameMode === GameMode.MOVING_SPHERES) {
+      if (this.targetManager.activeCount < 5) {
+        this.targetManager.spawnMovingSpheres(this.settings.targetSize, sphereSpeed);
+      }
+      const moved = this.targetManager.updateMovingSpheres(dt, sphereSpeed);
+      if (moved) this.updateTargetBuffers();
+    } else if (gameMode === GameMode.FLICK) {
+      if (this.targetManager.activeCount === 0) {
+        this.targetManager.spawnFlickTarget(this.cameraPos, this.settings.targetSize, flickMinAngle);
+        this.updateTargetBuffers();
       }
     } else {
       this.mannequinManager.update(dt);
@@ -647,20 +674,30 @@ export class Engine {
     const dirY = sinPitch;
     const dirZ = -cosYaw * cosPitch;
 
-    const gameMode = useSettingsStore.getState().gameMode;
+    const { gameMode } = useSettingsStore.getState();
     let endX, endY, endZ;
     let isHit = false;
 
-    if (gameMode === GameMode.SPHERES) {
+    const isSphereMode = gameMode === GameMode.SPHERES
+      || gameMode === GameMode.MOVING_SPHERES
+      || gameMode === GameMode.FLICK;
+
+    if (isSphereMode) {
       const hitIndex = this.targetManager.checkHit(this.cameraPos, dirX, dirY, dirZ);
 
       if (hitIndex >= 0) {
         this.hits++;
         isHit = true;
-        
+
         endX = this.targetManager.positions[hitIndex * 3];
         endY = this.targetManager.positions[hitIndex * 3 + 1];
         endZ = this.targetManager.positions[hitIndex * 3 + 2];
+
+        // Record reaction time for Flick mode
+        if (gameMode === GameMode.FLICK) {
+          const reactionMs = performance.now() - this.targetManager.flickSpawnTime;
+          this.flickReactionTimes.push(reactionMs);
+        }
 
         this.targetManager.processHit(hitIndex);
 
@@ -777,11 +814,16 @@ export class Engine {
   }
 
   endGame() {
-    const finalState = {
+    const avgReactionMs = this.flickReactionTimes.length > 0
+      ? this.flickReactionTimes.reduce((a, b) => a + b, 0) / this.flickReactionTimes.length
+      : undefined;
+
+    const finalState: GameState = {
       timeRemaining: 0,
       shots: this.shots,
       hits: this.hits,
-      accuracy: this.shots > 0 ? (this.hits / this.shots) * 100 : 0
+      accuracy: this.shots > 0 ? (this.hits / this.shots) * 100 : 0,
+      avgReactionMs
     };
 
     this.stop();
@@ -830,7 +872,11 @@ export class Engine {
 
     if (!this.previewMode) {
       const gameMode = useSettingsStore.getState().gameMode;
-      if (gameMode === GameMode.SPHERES) {
+      const isSphereMode = gameMode === GameMode.SPHERES
+        || gameMode === GameMode.MOVING_SPHERES
+        || gameMode === GameMode.FLICK;
+
+      if (isSphereMode) {
         gl.useProgram(this.targetProgram);
         gl.uniformMatrix4fv((this.targetProgram as any).uniforms.viewProj, false, this.viewProjMatrix);
         gl.bindVertexArray(this.targetVAO);

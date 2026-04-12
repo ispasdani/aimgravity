@@ -78,7 +78,11 @@ export default function SettingsPage() {
     tracersEnabled,
     toggleTracers,
     crouchMode,
-    setCrouchMode
+    setCrouchMode,
+    sphereSpeed,
+    updateSphereSpeed,
+    flickMinAngle,
+    updateFlickMinAngle
   } = useSettingsStore();
 
   const toggleFullscreen = (e: React.MouseEvent) => {
@@ -428,6 +432,35 @@ export default function SettingsPage() {
                         </div>
                       </div>
                     </div>
+                  </div>
+                </section>
+
+                {/* Mode-specific settings */}
+                <section className="bg-white/[0.02] border border-white/5 p-8" style={clipPathStyle}>
+                  <div className="flex items-center gap-3 mb-8">
+                    <div className="w-8 h-8 flex items-center justify-center bg-[#EE3F2C]/10 border border-[#EE3F2C]/20 text-[#EE3F2C]">
+                      <MousePointer2 size={16} />
+                    </div>
+                    <h2 className="text-sm font-bold uppercase tracking-widest">Mode Settings</h2>
+                  </div>
+
+                  <div className="space-y-6">
+                    <Slider
+                      label="Moving Sphere Speed (u/s)"
+                      value={sphereSpeed}
+                      min={0.5}
+                      max={10}
+                      step={0.25}
+                      onChange={updateSphereSpeed}
+                    />
+                    <Slider
+                      label="Flick Min Angle (°)"
+                      value={flickMinAngle}
+                      min={15}
+                      max={180}
+                      step={5}
+                      onChange={updateFlickMinAngle}
+                    />
                   </div>
                 </section>
               </div>

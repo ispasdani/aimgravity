@@ -159,6 +159,12 @@ export default function GameCanvas() {
                 <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest mb-1">Accuracy</p>
                 <p className="text-3xl font-bold">{gameState?.accuracy.toFixed(1)}%</p>
               </div>
+              {gameState?.avgReactionMs !== undefined && (
+                <div className="col-span-2 p-4 bg-purple-500/5 border border-purple-500/20">
+                  <p className="text-[10px] text-purple-400/70 font-bold uppercase tracking-widest mb-1">Avg Reaction</p>
+                  <p className="text-3xl font-bold text-purple-400">{gameState.avgReactionMs.toFixed(0)}<span className="text-xs text-purple-400/50 ml-1">ms</span></p>
+                </div>
+              )}
             </div>
             <button 
               onClick={() => {

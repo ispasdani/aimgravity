@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react';
-import { Target, Skull, Activity, ArrowRight, Crosshair } from 'lucide-react';
+import { Target, Skull, Activity, ArrowRight, Crosshair, Orbit, Zap } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import ModeCard from '../../components/mode-card';
 import { useSettingsStore, GameMode } from '@/lib/store/use-settings-store';
@@ -60,6 +60,26 @@ export default function TrainingHub() {
           color="#10B981"
           stats="Classic Mode"
           onClick={() => handleLaunch(GameMode.SPHERES)}
+        />
+
+        <ModeCard
+          title="Moving Spheres"
+          description="Track smoothly gliding targets across the arena. Builds mouse control and target-leading fundamentals."
+          icon={Orbit}
+          difficulty="Intermediate"
+          color="#F59E0B"
+          stats="Tracking Mode"
+          onClick={() => handleLaunch(GameMode.MOVING_SPHERES)}
+        />
+
+        <ModeCard
+          title="Flick Training"
+          description="One shot. One target. High angular displacement between every spawn. Pure flick mechanics and raw reaction time."
+          icon={Zap}
+          difficulty="Advanced"
+          color="#A855F7"
+          stats="Reaction Time"
+          onClick={() => handleLaunch(GameMode.FLICK)}
         />
       </div>
 
