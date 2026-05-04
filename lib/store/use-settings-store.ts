@@ -7,7 +7,8 @@ export enum GameMode {
   MOVING_SPHERES = 'moving_spheres',
   FLICK = 'flick',
   MANNEQUIN_ONE_SHOT = 'mannequin_one_shot',
-  MANNEQUIN_DAMAGE = 'mannequin_damage'
+  MANNEQUIN_DAMAGE = 'mannequin_damage',
+  GRAVITY_FLICK = 'gravity_flick'
 }
 
 export interface WeaponSettings {
@@ -43,6 +44,8 @@ interface SettingsState {
   sphereSpeed: number;
   /** Minimum angular displacement (degrees) between flick targets */
   flickMinAngle: number;
+  /** Number of lanes in Gravity Flick mode */
+  gravityFlickLanes: number;
 
   // Actions
   toggleTracers: () => void;
@@ -56,6 +59,7 @@ interface SettingsState {
   updateFOV: (fov: number) => void;
   updateSphereSpeed: (speed: number) => void;
   updateFlickMinAngle: (angle: number) => void;
+  updateGravityFlickLanes: (lanes: number) => void;
   resetWeaponSettings: () => void;
   resetCrosshairSettings: () => void;
 }
@@ -93,6 +97,7 @@ export const useSettingsStore = create<SettingsState>()(
       sessionHits: [],
       sphereSpeed: 2.5,
       flickMinAngle: 45,
+      gravityFlickLanes: 3,
 
       updateWeaponSettings: (newSettings) =>
         set((state) => ({
@@ -111,6 +116,8 @@ export const useSettingsStore = create<SettingsState>()(
       updateSphereSpeed: (sphereSpeed) => set({ sphereSpeed }),
 
       updateFlickMinAngle: (flickMinAngle) => set({ flickMinAngle }),
+
+      updateGravityFlickLanes: (gravityFlickLanes) => set({ gravityFlickLanes }),
 
       toggleTracers: () => set((state) => ({ tracersEnabled: !state.tracersEnabled })),
       setCrouchMode: (mode) => set({ crouchMode: mode }),

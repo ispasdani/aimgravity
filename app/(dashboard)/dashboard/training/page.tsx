@@ -1,7 +1,7 @@
 'use client'
 
-import React from 'react';
-import { Target, Skull, Activity, ArrowRight, Crosshair, Orbit, Zap } from 'lucide-react';
+import React, { useState } from 'react';
+import { Target, Skull, Activity, ArrowRight, Crosshair, Orbit, Zap, AlignEndVertical, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import ModeCard from '../../components/mode-card';
 import { useSettingsStore, GameMode } from '@/lib/store/use-settings-store';
@@ -13,8 +13,15 @@ const clipPathStyle = {
 export default function TrainingHub() {
   const router = useRouter();
   const setGameMode = useSettingsStore(state => state.setGameMode);
+  const [configMode, setConfigMode] = useState<GameMode | null>(null);
+  const gravityFlickLanes = useSettingsStore(state => state.gravityFlickLanes);
+  const updateGravityFlickLanes = useSettingsStore(state => state.updateGravityFlickLanes);
 
   const handleLaunch = (mode: GameMode) => {
+    if (mode === GameMode.GRAVITY_FLICK && configMode !== GameMode.GRAVITY_FLICK) {
+      setConfigMode(mode);
+      return;
+    }
     setGameMode(mode);
     router.push('/quickplay');
   };
@@ -81,6 +88,16 @@ export default function TrainingHub() {
           stats="Reaction Time"
           onClick={() => handleLaunch(GameMode.FLICK)}
         />
+
+        <ModeCard
+          title="Gravity Flick"
+          description="React fast to targets falling in lanes. Tests rapid target switching and vertical reaction time."
+          icon={AlignEndVertical}
+          difficulty="Advanced"
+          color="#EC4899"
+          stats="Reaction & Speed"
+          onClick={() => handleLaunch(GameMode.GRAVITY_FLICK)}
+        />
       </div>
 
       {/* Featured banner */}
@@ -121,6 +138,50 @@ export default function TrainingHub() {
           </div>
         </div>
       </div>
+
+      {configMode === GameMode.GRAVITY_FLICK && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#0A0A0A] border border-white/10 p-8 max-w-md w-full relative" style={clipPathStyle}>
+            <button 
+              onClick={() => setConfigMode(null)}
+              className="absolute top-4 right-4 text-white/50 hover:text-white"
+            >
+              <X size={24} />
+            </button>
+            <h3 className="text-2xl font-bold uppercase tracking-tighter mb-2">Gravity Flick Config</h3>
+            <p className="text-white/40 text-sm mb-6 uppercase tracking-widest">Select number of lanes</p>
+            
+            <div className="flex gap-4 mb-8">
+              {[2, 3, 4].map(lanes => (
+                <button
+                  key={lanes}
+                  onClick={() => updateGravityFlickLanes(lanes)}
+                  className={`flex-1 py-4 text-xl font-bold border transition-colors ${
+                    gravityFlickLanes === lanes 
+                      ? 'border-[#EE3F2C] bg-[#EE3F2C]/10 text-[#EE3F2C]' 
+                      : 'border-white/10 text-white/50 hover:border-white/30 hover:text-white'
+                  }`}
+                  style={clipPathStyle}
+                >
+                  {lanes}
+                </button>
+              ))}
+            </div>
+
+            <button 
+              onClick={() => {
+                setConfigMode(null);
+                setGameMode(GameMode.GRAVITY_FLICK);
+                router.push('/quickplay');
+              }}
+              className="w-full bg-[#EE3F2C] text-white py-4 font-bold uppercase text-sm tracking-widest hover:bg-red-600 transition-colors"
+              style={clipPathStyle}
+            >
+              Start Drill
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

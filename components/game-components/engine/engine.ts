@@ -1,6 +1,6 @@
 import { createMat4, identityMat4, perspectiveMat4, multiplyMat4, rotateXMat4, rotateYMat4, rotateZMat4, translateMat4, scaleMat4, Mat4 } from './math';
 import { FLOOR_VS, FLOOR_FS, WALL_VS, WALL_FS, TARGET_VS, TARGET_FS, CROSSHAIR_VS, CROSSHAIR_FS, WEAPON_VS, WEAPON_FS } from './shaders';
-import { createSphereGeometry, createPlaneGeometry, createQuadGeometry } from './geometry';
+import { createSphereGeometry, createPlaneGeometry, createQuadGeometry, createBoxGeometry } from './geometry';
 import { generateConcreteTexture, generateMetalTexture } from './textures';
 import { createPSXPistolGeometry } from './weapons/psx-pistol';
 import { TargetManager } from './targets/target-manager';
@@ -96,10 +96,12 @@ export class Engine {
   mannequinVAO!: WebGLVertexArrayObject;
   crosshairVAO!: WebGLVertexArrayObject;
   weaponVAO!: WebGLVertexArrayObject;
+  boxTargetVAO!: WebGLVertexArrayObject;
 
   floorIndexCount: number = 0;
   wallIndexCount: number = 0;
   targetIndexCount: number = 0;
+  boxTargetIndexCount: number = 0;
   mannequinIndexCount: number = 0;
   weaponIndexCount: number = 0;
   weaponIndexType: number = 5123; // Default UNSIGNED_SHORT (5123)
@@ -373,6 +375,39 @@ export class Engine {
 
     this.targetIndexCount = sphere.indices.length;
     gl.bindVertexArray(null);
+
+    // --- Box Target VAO for Gravity Flick ---
+    const box = createBoxGeometry(1.5, 4, 0.5);
+    this.boxTargetVAO = gl.createVertexArray()!;
+    gl.bindVertexArray(this.boxTargetVAO);
+
+    const boxPosBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, boxPosBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, box.positions, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.targetPosBuffer);
+    gl.enableVertexAttribArray(1);
+    gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribDivisor(1, 1);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.targetScaleBuffer);
+    gl.enableVertexAttribArray(2);
+    gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribDivisor(2, 1);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.targetActiveBuffer);
+    gl.enableVertexAttribArray(3);
+    gl.vertexAttribPointer(3, 1, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribDivisor(3, 1);
+
+    const boxIndexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, boxIndexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, box.indices, gl.STATIC_DRAW);
+
+    this.boxTargetIndexCount = box.indices.length;
+    gl.bindVertexArray(null);
   }
 
   createMannequinGeometryBuffer() {
@@ -551,7 +586,7 @@ export class Engine {
     this.mannequinManager.reset();
     this.flickReactionTimes = [];
 
-    const { gameMode, sphereSpeed, flickMinAngle } = useSettingsStore.getState();
+    const { gameMode, sphereSpeed, flickMinAngle, gravityFlickLanes } = useSettingsStore.getState();
 
     if (gameMode === GameMode.SPHERES) {
       this.targetManager.spawnOptimalTargets(this.settings.targetSize);
@@ -563,6 +598,9 @@ export class Engine {
       // seed lastFlickPos well out of the way so first spawn is unconstrained
       this.targetManager.lastFlickPos = [0, 1.7, -8];
       this.targetManager.spawnFlickTarget(this.cameraPos, this.settings.targetSize, flickMinAngle);
+      this.updateTargetBuffers();
+    } else if (gameMode === GameMode.GRAVITY_FLICK) {
+      this.targetManager.spawnGravityFlick(this.settings.targetSize, gravityFlickLanes);
       this.updateTargetBuffers();
     } else {
       this.mannequinManager.spawnMannequin(this.settings.targetSize);
@@ -628,7 +666,7 @@ export class Engine {
 
     this.tracerSystem.update(dt);
 
-    const { gameMode, sphereSpeed, flickMinAngle } = useSettingsStore.getState();
+    const { gameMode, sphereSpeed, flickMinAngle, gravityFlickLanes } = useSettingsStore.getState();
 
     if (gameMode === GameMode.SPHERES) {
       if (this.targetManager.activeCount < 3) {
@@ -646,6 +684,12 @@ export class Engine {
         this.targetManager.spawnFlickTarget(this.cameraPos, this.settings.targetSize, flickMinAngle);
         this.updateTargetBuffers();
       }
+    } else if (gameMode === GameMode.GRAVITY_FLICK) {
+      if (this.targetManager.activeCount < gravityFlickLanes * 1.5) {
+        this.targetManager.spawnGravityFlick(this.settings.targetSize, gravityFlickLanes);
+      }
+      const moved = this.targetManager.updateGravityFlick(dt, sphereSpeed * 2, gravityFlickLanes);
+      if (moved) this.updateTargetBuffers();
     } else {
       this.mannequinManager.update(dt);
     }
@@ -681,9 +725,35 @@ export class Engine {
     const isSphereMode = gameMode === GameMode.SPHERES
       || gameMode === GameMode.MOVING_SPHERES
       || gameMode === GameMode.FLICK;
+    const isGravityFlick = gameMode === GameMode.GRAVITY_FLICK;
 
-    if (isSphereMode) {
-      const hitIndex = this.targetManager.checkHit(this.cameraPos, dirX, dirY, dirZ);
+    if (isSphereMode || isGravityFlick) {
+      let hitIndex = -1;
+
+      if (isGravityFlick) {
+        let closestT = Infinity;
+        for (let i = 0; i < this.targetManager.maxTargets; i++) {
+          if (this.targetManager.active[i] < 0.5) continue;
+          const scale = this.targetManager.scales[i];
+          const center = {
+            x: this.targetManager.positions[i * 3],
+            y: this.targetManager.positions[i * 3 + 1],
+            z: this.targetManager.positions[i * 3 + 2]
+          };
+          const halfSize = {
+            hw: (1.5 / 2) * scale,
+            hh: (4 / 2) * scale,
+            hd: (0.5 / 2) * scale
+          };
+          const t = rayBoxIntersect(this.cameraPos, [dirX, dirY, dirZ], center, halfSize);
+          if (t > 0 && t < closestT) {
+            closestT = t;
+            hitIndex = i;
+          }
+        }
+      } else {
+        hitIndex = this.targetManager.checkHit(this.cameraPos, dirX, dirY, dirZ);
+      }
 
       if (hitIndex >= 0) {
         this.hits++;
@@ -875,12 +945,19 @@ export class Engine {
       const isSphereMode = gameMode === GameMode.SPHERES
         || gameMode === GameMode.MOVING_SPHERES
         || gameMode === GameMode.FLICK;
+      const isGravityFlick = gameMode === GameMode.GRAVITY_FLICK;
 
-      if (isSphereMode) {
+      if (isSphereMode || isGravityFlick) {
         gl.useProgram(this.targetProgram);
         gl.uniformMatrix4fv((this.targetProgram as any).uniforms.viewProj, false, this.viewProjMatrix);
-        gl.bindVertexArray(this.targetVAO);
-        gl.drawElementsInstanced(gl.TRIANGLES, this.targetIndexCount, gl.UNSIGNED_SHORT, 0, this.targetManager.maxTargets);
+        
+        if (isGravityFlick) {
+          gl.bindVertexArray(this.boxTargetVAO);
+          gl.drawElementsInstanced(gl.TRIANGLES, this.boxTargetIndexCount, gl.UNSIGNED_SHORT, 0, this.targetManager.maxTargets);
+        } else {
+          gl.bindVertexArray(this.targetVAO);
+          gl.drawElementsInstanced(gl.TRIANGLES, this.targetIndexCount, gl.UNSIGNED_SHORT, 0, this.targetManager.maxTargets);
+        }
       } else {
         gl.useProgram(this.mannequinProgram);
         const uViewProj = gl.getUniformLocation(this.mannequinProgram, 'u_viewProj');

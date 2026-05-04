@@ -9,6 +9,42 @@ export interface GeometryData {
   texture?: ImageBitmap | HTMLImageElement;
 }
 
+export function createBoxGeometry(width: number, height: number, depth: number): GeometryData {
+  const w = width / 2;
+  const h = height / 2;
+  const d = depth / 2;
+
+  // 8 vertices of a box
+  // 24 vertices to have correct normals (4 per face)
+  // For simplicity, we just need positions and indices if we don't care about lighting the target
+  // But let's provide standard 24 vertex positions
+  const positions = new Float32Array([
+    // Front face
+    -w, -h,  d,   w, -h,  d,   w,  h,  d,  -w,  h,  d,
+    // Back face
+    -w, -h, -d,  -w,  h, -d,   w,  h, -d,   w, -h, -d,
+    // Top face
+    -w,  h, -d,  -w,  h,  d,   w,  h,  d,   w,  h, -d,
+    // Bottom face
+    -w, -h, -d,   w, -h, -d,   w, -h,  d,  -w, -h,  d,
+    // Right face
+     w, -h, -d,   w,  h, -d,   w,  h,  d,   w, -h,  d,
+    // Left face
+    -w, -h, -d,  -w, -h,  d,  -w,  h,  d,  -w,  h, -d,
+  ]);
+
+  const indices = new Uint16Array([
+    0,  1,  2,      0,  2,  3,    // front
+    4,  5,  6,      4,  6,  7,    // back
+    8,  9,  10,     8,  10, 11,   // top
+    12, 13, 14,     12, 14, 15,   // bottom
+    16, 17, 18,     16, 18, 19,   // right
+    20, 21, 22,     20, 22, 23,   // left
+  ]);
+
+  return { positions, indices };
+}
+
 export function createSphereGeometry(segments: number): GeometryData {
   const positions: number[] = [];
   const rings = segments;

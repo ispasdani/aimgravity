@@ -229,6 +229,51 @@ export class TargetManager {
   }
 
   // ─────────────────────────────────────────────
+  // Gravity Flick Mode
+  // ─────────────────────────────────────────────
+
+  spawnGravityFlick(targetSizeSetting: number = 0.5, numLanes: number = 3) {
+    const targetSize = targetSizeSetting * 1.5;
+    const count = numLanes * 1.5; // Adjust density based on lanes
+    const laneSpacing = 2;
+    const startX = -(numLanes - 1) * laneSpacing / 2;
+
+    for (let i = 0; i < this.maxTargets && this.activeCount < count; i++) {
+      if (this.active[i] > 0.5) continue;
+
+      const lane = Math.floor(Math.random() * numLanes);
+      this.positions[i * 3]     = startX + lane * laneSpacing;
+      this.positions[i * 3 + 1] = 10 + Math.random() * 10; // Stagger initial heights
+      this.positions[i * 3 + 2] = -8;
+
+      this.scales[i] = targetSize;
+      this.active[i] = 1;
+      this.activeCount++;
+    }
+  }
+
+  updateGravityFlick(dt: number, speed: number = 6, numLanes: number = 3): boolean {
+    let dirty = false;
+    const laneSpacing = 2;
+    const startX = -(numLanes - 1) * laneSpacing / 2;
+
+    for (let i = 0; i < this.maxTargets; i++) {
+      if (this.active[i] < 0.5) continue;
+
+      this.positions[i * 3 + 1] -= speed * dt;
+
+      // If it falls below floor, recycle it
+      if (this.positions[i * 3 + 1] < -4) {
+        const lane = Math.floor(Math.random() * numLanes);
+        this.positions[i * 3]     = startX + lane * laneSpacing;
+        this.positions[i * 3 + 1] = 15 + Math.random() * 5;
+      }
+      dirty = true;
+    }
+    return dirty;
+  }
+
+  // ─────────────────────────────────────────────
   // Shared hit detection
   // ─────────────────────────────────────────────
 
